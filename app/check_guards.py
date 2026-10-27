@@ -10,6 +10,7 @@ from app.agent.guards import (
     allowed_numbers,
     check_input,
     clean_output,
+    numbers_in,
     unsupported_numbers,
 )
 
@@ -45,5 +46,7 @@ check(unsupported_numbers("اتنين بـ 900 جنيه", allowed) == [], "price
 check(unsupported_numbers("السعر 500 جنيه بالتوصيل", allowed) == [], "price + delivery fee is allowed (450 + 50)")
 check(unsupported_numbers("الاجمالي 1,200 جنيه", allowed_numbers([1200], [])) == [], "numbers with commas are understood")
 check(unsupported_numbers("محجوز 20 دقيقة والتوصيل 3 ايام", allowed) == [], "small numbers (minutes, days) are ignored")
+
+check(numbers_in('{"total_egp": 1319.0, "order_ref": "ab12", "delivery_fee_egp": 50.0}') == {1319}, "numbers_in finds the totals a tool produced")
 
 print("\nAll checks passed." if failures == 0 else f"\n{failures} check(s) failed.")

@@ -72,3 +72,10 @@ def unsupported_numbers(reply: str, allowed: set[int]) -> list[int]:
     text = re.sub(r"(?<=\d),(?=\d{3})", "", text)  # 1,200 -> 1200
     found = {int(n) for n in re.findall(r"\d{3,}", text)}
     return sorted(n for n in found if n not in allowed)
+
+
+def numbers_in(text: str) -> set[int]:
+    """All numbers with 3+ digits in a text (used to learn which numbers the shop's own tools produced)."""
+    text = text.translate(_ARABIC_DIGITS)
+    text = re.sub(r"(?<=\d),(?=\d{3})", "", text)
+    return {int(n) for n in re.findall(r"\d{3,}", text)}

@@ -310,3 +310,27 @@ class Reservation(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = created_at_col()
+
+
+# ---------- Questions the bot passes on to the shop ----------
+
+class ShopQuestionStatus(str, enum.Enum):
+    OPEN = "OPEN"
+    ANSWERED = "ANSWERED"
+
+
+class ShopQuestion(Base):
+    """Something a customer asked that the bot could not answer (material, discounts, custom requests)."""
+    __tablename__ = "shop_questions"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    seller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sellers.id", ondelete="CASCADE"), index=True)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"))
+    question: Mapped[str] = mapped_column(Text)
+    status: Mapped[ShopQuestionStatus] = mapped_column(
+        pg_enum(ShopQuestionStatus),
+        default=ShopQuestionStatus.OPEN,
+        server_default=ShopQuestionStatus.OPEN.value,
+    )
+    answer: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = created_at_col()

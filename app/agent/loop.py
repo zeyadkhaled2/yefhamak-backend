@@ -3,7 +3,7 @@
   1. Save the customer's message. A blocked message gets a canned reply and never reaches the LLM.
   2. Send the LLM the instructions, the recent chat, and the list of tools.
   3. If the LLM asks to use a tool, run it, give the result back, and ask the LLM again.
-  4. When the LLM answers in text, check its prices. One wrong price = one automatic correction. Still wrong = hand off to a human.
+  4. When the LLM answers in text, check its numbers (they must come from the shop data or a tool result). One wrong price = one automatic correction. Still wrong = hand off to a human.
   5. Clean the text for WhatsApp, save it, return it.
 """
 import json
@@ -14,7 +14,7 @@ from openai import OpenAI
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.agent.guards import allowed_numbers, check_input, clean_output, unsupported_numbers
+from app.agent.guards import allowed_numbers, check_input, clean_output, numbers_in, unsupported_numbers
 from app.agent.prompt import build_system_prompt
 from app.agent.tools import TOOLS, run_tool
 from app.config import settings
@@ -57,10 +57,13 @@ def _history(db: Session, conversation_id) -> list[dict]:
     ]
 
 
-def _bad_numbers(db: Session, seller: Seller, conversation: Conversation, reply: str) -> list[int]:
-    shown = [m["price_egp"] for m in (conversation.state or {}).get("last_search", [])]
+def _bad_numbers(db: Session, seller: Seller, conversation: Conversation, reply: str, tool_numbers: set[int]) -> list[int]:
+    """Numbers in the reply that did not come from the shop's own data or from this turn's tool results."""
+    state = conversation.state or {}
+    shown = [m["price_egp"] for m in state.get("last_search", [])]
     fees = db.scalars(select(DeliveryZone.fee).where(DeliveryZone.seller_id == seller.id)).all()
-    return unsupported_numbers(reply, allowed_numbers(shown, fees))
+    allowed = allowed_numbers(shown, fees) | tool_numbers | numbers_in(json.dumps(state.get("last_order", {})))
+    return unsupported_numbers(reply, allowed)
 
 
 def _save_reply(db: Session, conversation: Conversation, reply: str, tokens_in=0, tokens_out=0, started=None, model=None) -> None:
@@ -96,6 +99,7 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
     tokens_in = tokens_out = 0
     reply = ""
     corrected = False
+    tool_numbers: set[int] = set()  # numbers produced by tools this turn (order totals etc.)
 
     try:
         messages = [{"role": "system", "content": build_system_prompt(db, seller, conversation)}]
@@ -117,7 +121,7 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
 
             if not message.tool_calls:  # text: this is the candidate answer
                 candidate = (message.content or "").strip()
-                bad = _bad_numbers(db, seller, conversation, candidate) if candidate else []
+                bad = _bad_numbers(db, seller, conversation, candidate, tool_numbers) if candidate else []
                 if bad and not corrected:  # 4. one automatic correction
                     corrected = True
                     if debug:
@@ -146,7 +150,9 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
                 if debug:
                     print(f"   [tool] {call.function.name}({call.function.arguments})")
                     print(f"          -> {json.dumps(result, ensure_ascii=False)[:400]}")
-                messages.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result, ensure_ascii=False)})
+                result_text = json.dumps(result, ensure_ascii=False)
+                tool_numbers |= numbers_in(result_text)
+                messages.append({"role": "tool", "tool_call_id": call.id, "content": result_text})
 
         if not reply:  # no safe answer: give up safely and let a human continue
             if debug:

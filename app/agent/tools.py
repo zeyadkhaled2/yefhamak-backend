@@ -11,9 +11,24 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Conversation, ConversationStatus, Reservation, ReservationStatus, Seller
+from app.models import (
+    Conversation,
+    ConversationStatus,
+    DeliveryZone,
+    Reservation,
+    ReservationStatus,
+    Seller,
+    ShopQuestion,
+)
 from app.services.catalog import search_products
 from app.services.inventory import RESERVATION_MINUTES, available_quantity, reserve_item
+from app.services.orders import (
+    count_customer_messages,
+    create_order,
+    order_summary,
+    public_summary,
+    validate_details,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +42,18 @@ class SearchArgs(BaseModel):
 class ReserveArgs(BaseModel):
     variant_ref: str = Field(pattern=r"^v\d{1,3}$")
     quantity: int = Field(default=1, ge=1, le=5)
+
+
+class CreateOrderArgs(BaseModel):
+    customer_name: str = Field(min_length=2, max_length=60)
+    phone: str = Field(min_length=8, max_length=20)
+    address: str = Field(min_length=8, max_length=300)
+    area: str = Field(min_length=2, max_length=60)
+    confirmed: bool = False
+
+
+class AskTeamArgs(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
 
 
 class HandoffArgs(BaseModel):
@@ -54,9 +81,22 @@ TOOLS = [
         ReserveArgs,
     ),
     _tool(
+        "create_order",
+        "Create the customer's order from the items currently held for them. First call with confirmed=false to get a "
+        "summary with prices and the delivery fee, read it back, and wait for the customer's reply. Only after their "
+        "clear yes call again with confirmed=true and the same details. area is the delivery city (for example Cairo, Giza, Alexandria).",
+        CreateOrderArgs,
+    ),
+    _tool(
+        "ask_shop_team",
+        "Save a question for the shop team when the customer asks something you cannot answer from the tools or the shop info "
+        "(material, discounts, custom requests). Pass the customer's question in their own words.",
+        AskTeamArgs,
+    ),
+    _tool(
         "handoff_to_human",
-        "Pass the chat to a human at the shop. Use when unsure, the customer is upset, or the request is about "
-        "refunds, complaints, custom requests, or anything beyond product questions and reservations.",
+        "Pass the chat to a human at the shop. Use when the customer is upset, or the request is about refunds, "
+        "complaints, or anything beyond product questions, reservations and orders.",
         HandoffArgs,
     ),
 ]
@@ -87,7 +127,7 @@ def _search(db: Session, seller: Seller, conversation: Conversation, args: Searc
         db.commit()
 
     if not matches:
-        instruction = "Nothing matches. Tell the customer you will check with the team, or offer to hand off."
+        instruction = "Nothing matches. Tell the customer you don't have it, and call ask_shop_team with what they wanted."
     elif result["needs_clarification"]:
         instruction = "More than one product matches. Ask the customer which one they mean. Do not choose for them."
     else:
@@ -126,6 +166,71 @@ def _reserve(db: Session, seller: Seller, conversation: Conversation, args: Rese
     return {"ok": True, "held_for_minutes": RESERVATION_MINUTES}
 
 
+def _create_order(db: Session, seller: Seller, conversation: Conversation, args: CreateOrderArgs) -> dict:
+    state = conversation.state or {}
+    zones = list(db.scalars(select(DeliveryZone).where(DeliveryZone.seller_id == seller.id)).all())
+
+    details, zone, error = validate_details(args.customer_name, args.phone, args.address, args.area, zones)
+    if error:
+        return error
+
+    summary = order_summary(db, conversation, zone)
+    if summary is None:
+        last = state.get("last_order")
+        if last and args.confirmed:  # the order was already created; don't create it twice
+            return {"ok": True, "already_created": True, **last}
+        return {"ok": False, "reason": "nothing_reserved", "hint": "Reserve an item for the customer first."}
+
+    customer_messages = count_customer_messages(db, conversation.id)
+
+    if not args.confirmed:  # step 1: preview. Nothing is saved except a note of what was previewed.
+        conversation.state = {**state, "order_preview": {"details": details, "customer_messages": customer_messages}}
+        db.commit()
+        return {
+            "ok": True,
+            "preview": True,
+            **public_summary(summary, zone.area),
+            "next_step": "Read this summary back to the customer and ask them to confirm. "
+                         "After their yes, call create_order again with confirmed=true.",
+        }
+
+    # step 2: commit. Two rules enforced here in code, whatever the model says:
+    preview = state.get("order_preview")
+    if not preview or preview["details"] != details:
+        return {"ok": False, "reason": "details_not_previewed",
+                "hint": "Call create_order with confirmed=false first and read the summary to the customer."}
+    if customer_messages <= preview["customer_messages"]:
+        return {"ok": False, "reason": "customer_has_not_confirmed_yet",
+                "hint": "Ask the customer to confirm and wait for their reply."}
+
+    order = create_order(db, seller, conversation, details, summary)
+    if order is None:
+        conversation.state = {k: v for k, v in state.items() if k != "order_preview"}
+        db.commit()
+        return {"ok": False, "reason": "reservation_expired",
+                "hint": "The hold ran out. Offer to reserve the item again."}
+
+    totals = {
+        "order_ref": str(order.id)[:8],
+        "subtotal_egp": float(summary["subtotal"]),
+        "delivery_fee_egp": float(summary["delivery_fee"]),
+        "total_egp": float(summary["total"]),
+    }
+    conversation.state = {**{k: v for k, v in state.items() if k != "order_preview"}, "last_order": totals}
+    db.commit()
+    return {"ok": True, **totals, "note": "Order sent to the shop team for review. Do not promise a delivery date. Payment is arranged by the team."}
+
+
+def _ask_team(db: Session, seller: Seller, conversation: Conversation, args: AskTeamArgs) -> dict:
+    db.add(ShopQuestion(seller_id=seller.id, conversation_id=conversation.id, question=args.question))
+    db.commit()
+    return {
+        "ok": True,
+        "note": "Saved for the shop team. Tell the customer their question was passed on. "
+                "Do not offer to wait, and do not promise when the team will answer. Keep helping with anything else.",
+    }
+
+
 def _handoff(db: Session, seller: Seller, conversation: Conversation, args: HandoffArgs) -> dict:
     conversation.status = ConversationStatus.HANDOFF
     db.commit()
@@ -135,6 +240,8 @@ def _handoff(db: Session, seller: Seller, conversation: Conversation, args: Hand
 HANDLERS = {
     "search_products": (SearchArgs, _search),
     "reserve_item": (ReserveArgs, _reserve),
+    "create_order": (CreateOrderArgs, _create_order),
+    "ask_shop_team": (AskTeamArgs, _ask_team),
     "handoff_to_human": (HandoffArgs, _handoff),
 }
 
