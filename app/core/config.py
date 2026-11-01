@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     direct_url: str | None = None
     openrouter_api_key: str | None = None
     llm_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
+    demo_api_key: str | None = None
+    live_chat_enabled: bool = False
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "https://yefhamak.vercel.app"]
 
     @field_validator("database_url", "direct_url")
     @classmethod

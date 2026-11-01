@@ -1,0 +1,35 @@
+test_guardrails (unit.test_guards.GuardrailTests.test_guardrails) ... ok
+test_database_health_failure (unit.test_health.HealthTests.test_database_health_failure) ... ok
+test_database_health_success (unit.test_health.HealthTests.test_database_health_success) ... ok
+test_health_requires_no_database_query (unit.test_health.HealthTests.test_health_requires_no_database_query) ... ok
+test_code_crash_is_failure_even_with_provider_error (unit.test_provider_resilience.EvaluationTests.test_code_crash_is_failure_even_with_provider_error) ... ok
+test_daily_limit_saves_and_stops_suite (unit.test_provider_resilience.EvaluationTests.test_daily_limit_saves_and_stops_suite) ... ok
+test_daily_limit_stops_current_conversation (unit.test_provider_resilience.EvaluationTests.test_daily_limit_stops_current_conversation) ... ok
+test_error_classification (unit.test_provider_resilience.EvaluationTests.test_error_classification) ... ok
+test_crash_location (unit.test_provider_resilience.ProviderTests.test_crash_location) ... ok
+test_empty_response_exhausts_three_attempts (unit.test_provider_resilience.ProviderTests.test_empty_response_exhausts_three_attempts) ... ok
+test_empty_response_recovers (unit.test_provider_resilience.ProviderTests.test_empty_response_recovers) ... ok
+test_api_is_disabled_without_configured_key (unit.test_workspace_api.WorkspaceApiTests.test_api_is_disabled_without_configured_key) ... ok
+test_closed_conversation_rejects_sending (unit.test_workspace_api.WorkspaceApiTests.test_closed_conversation_rejects_sending) ... ok
+test_conversation_read_is_seller_scoped (unit.test_workspace_api.WorkspaceApiTests.test_conversation_read_is_seller_scoped) ... ok
+test_cors_allows_known_frontends_but_not_arbitrary_origins (unit.test_workspace_api.WorkspaceApiTests.test_cors_allows_known_frontends_but_not_arbitrary_origins) ... ok
+test_create_conversation_returns_only_public_fields (unit.test_workspace_api.WorkspaceApiTests.test_create_conversation_returns_only_public_fields) ... ok
+test_create_failure_rolls_back (unit.test_workspace_api.WorkspaceApiTests.test_create_failure_rolls_back) ... ok
+test_handoff_returns_silence_without_claiming_a_reply (unit.test_workspace_api.WorkspaceApiTests.test_handoff_returns_silence_without_claiming_a_reply) ... ok
+test_invalid_messages_and_pagination_never_call_agent (unit.test_workspace_api.WorkspaceApiTests.test_invalid_messages_and_pagination_never_call_agent) ... ok
+test_live_send_is_disabled_without_using_model (unit.test_workspace_api.WorkspaceApiTests.test_live_send_is_disabled_without_using_model) ... ok
+test_missing_demo_store_is_actionable (unit.test_workspace_api.WorkspaceApiTests.test_missing_demo_store_is_actionable) ... ok
+test_order_details_preserve_decimal_prices (unit.test_workspace_api.WorkspaceApiTests.test_order_details_preserve_decimal_prices) ... ok
+test_orders_filter_and_count_are_seller_scoped (unit.test_workspace_api.WorkspaceApiTests.test_orders_filter_and_count_are_seller_scoped) ... ok
+test_overlapping_send_returns_conflict_and_releases_lock (unit.test_workspace_api.WorkspaceApiTests.test_overlapping_send_returns_conflict_and_releases_lock) ... ok
+test_paginated_history_has_public_messages (unit.test_workspace_api.WorkspaceApiTests.test_paginated_history_has_public_messages) ... ok
+test_private_routes_require_key_before_querying_database (unit.test_workspace_api.WorkspaceApiTests.test_private_routes_require_key_before_querying_database) ... ok
+test_quota_failure_has_machine_readable_outcome_without_raw_trace (unit.test_workspace_api.WorkspaceApiTests.test_quota_failure_has_machine_readable_outcome_without_raw_trace) ... ok
+test_send_calls_existing_agent_with_trimmed_text (unit.test_workspace_api.WorkspaceApiTests.test_send_calls_existing_agent_with_trimmed_text) ... ok
+test_unknown_or_other_seller_conversation_returns_404 (unit.test_workspace_api.WorkspaceApiTests.test_unknown_or_other_seller_conversation_returns_404) ... ok
+test_unknown_order_returns_404 (unit.test_workspace_api.WorkspaceApiTests.test_unknown_order_returns_404) ... ok
+
+----------------------------------------------------------------------
+Ran 30 tests in 0.260s
+
+OK

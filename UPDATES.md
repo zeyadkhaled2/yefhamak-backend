@@ -1,5 +1,12 @@
 # Brief handoff log
 
+## 2026-11-01 — Backend endpoints (plan step 1)
+- Added `/api/demo` conversation creation/metadata/history/send and read-only seller order list/details. Uses existing models and agent; no schema migration. Demo Store scoping, validated/paginated contracts, decimal-string money, hidden agent state/provider traces.
+- Separate bearer `DEMO_API_KEY` required. `LIVE_CHAT_ENABLED=false` by default prevents accidental quota use. CORS includes local frontend and `https://yefhamak.vercel.app`. Run one local worker; overlapping sends return 409. Durable idempotency and frontend integration remain next.
+- API documentation: `docs/api.md`; saved offline results: `docs/testing/2026-11-01-backend-api.txt`. Tests use mocked DB/model; no live API calls, database resets, or live DB verification.
+- Verification: all 30 offline tests passed; Python compilation and diff whitespace checks passed.
+- Preserve docs/testing evidence for later demos, recordings, and portfolio. Portfolio/videos deferred; backend stays local for now and hosted frontend remains mock mode.
+
 ## 2026-11-01 — Structure optimization
 - Grouped settings under `app/core`, database base/session under `app/db`, HTTP routes under `app/api/routes`, demo seed/fixtures under `app/demo`.
 - Moved developer commands to `scripts`, LLM evaluations to `evals`, offline tests to `tests/unit`, explicit database checks to `tests/integration`, and historical notes to `docs`.
