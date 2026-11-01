@@ -30,12 +30,18 @@ class WorkspaceApiTests(unittest.TestCase):
         self.live_patch.start()
         self.client = TestClient(app, raise_server_exceptions=False)
         self.headers = {'Authorization': 'Bearer offline-test-key'}
+        self.claim_patch = patch.object(conversations.chat_requests, 'claim', return_value=None)
+        self.finish_patch = patch.object(conversations.chat_requests, 'finish')
+        self.claim_patch.start()
+        self.finish_patch.start()
 
     def tearDown(self):
         self.client.close()
         app.dependency_overrides.clear()
         self.live_patch.stop()
         self.key_patch.stop()
+        self.claim_patch.stop()
+        self.finish_patch.stop()
 
     @property
     def chat_url(self):
@@ -114,7 +120,7 @@ class WorkspaceApiTests(unittest.TestCase):
 
     def test_live_send_is_disabled_without_using_model(self):
         with patch.object(conversations, 'handle_message') as handle:
-            response = self.client.post(self.chat_url, json={'text': 'hello'}, headers=self.headers)
+            response = self.client.post(self.chat_url, json={'request_id': str(uuid4()), 'text': 'hello'}, headers=self.headers)
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()['detail'], 'live_chat_disabled')
         handle.assert_not_called()
@@ -122,7 +128,7 @@ class WorkspaceApiTests(unittest.TestCase):
     def test_send_calls_existing_agent_with_trimmed_text(self):
         self.use_conversation()
         with patch.object(settings, 'live_chat_enabled', True), patch.object(conversations, 'handle_message', return_value='أهلاً') as handle:
-            response = self.client.post(self.chat_url, json={'text': ' hello '}, headers=self.headers)
+            response = self.client.post(self.chat_url, json={'request_id': str(uuid4()), 'text': ' hello '}, headers=self.headers)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()['reply'], 'أهلاً')
         self.assertEqual(response.json()['outcome'], 'reply')
@@ -132,7 +138,7 @@ class WorkspaceApiTests(unittest.TestCase):
         with patch.object(settings, 'live_chat_enabled', True), patch.object(conversations, 'handle_message') as handle:
             for body in [{'text': ''}, {'text': '  '}, {'text': 'x' * 601}, {'text': 'hi', 'seller_id': str(uuid4())}]:
                 with self.subTest(body_size=len(str(body))):
-                    self.assertEqual(self.client.post(self.chat_url, json=body, headers=self.headers).status_code, 422)
+                    self.assertEqual(self.client.post(self.chat_url, json={**body, 'request_id': str(uuid4())}, headers=self.headers).status_code, 422)
             self.assertEqual(self.client.get(self.chat_url + '?limit=101', headers=self.headers).status_code, 422)
             self.assertEqual(self.client.get('/api/demo/orders?offset=-1', headers=self.headers).status_code, 422)
         handle.assert_not_called()
@@ -141,14 +147,14 @@ class WorkspaceApiTests(unittest.TestCase):
         self.use_conversation()
         self.conversation.status = ConversationStatus.CLOSED
         with patch.object(settings, 'live_chat_enabled', True), patch.object(conversations, 'handle_message') as handle:
-            self.assertEqual(self.client.post(self.chat_url, json={'text': 'hi'}, headers=self.headers).status_code, 409)
+            self.assertEqual(self.client.post(self.chat_url, json={'request_id': str(uuid4()), 'text': 'hi'}, headers=self.headers).status_code, 409)
         handle.assert_not_called()
 
     def test_handoff_returns_silence_without_claiming_a_reply(self):
         self.use_conversation()
         self.conversation.status = ConversationStatus.HANDOFF
         with patch.object(settings, 'live_chat_enabled', True), patch.object(conversations, 'handle_message', return_value=''):
-            response = self.client.post(self.chat_url, json={'text': 'hi'}, headers=self.headers)
+            response = self.client.post(self.chat_url, json={'request_id': str(uuid4()), 'text': 'hi'}, headers=self.headers)
         self.assertEqual(response.json()['outcome'], 'handoff')
         self.assertIsNone(response.json()['reply'])
 
@@ -158,7 +164,7 @@ class WorkspaceApiTests(unittest.TestCase):
             trace.append({'type': 'error', 'error': 'RateLimitError: secret-provider-details'})
             return 'Temporary problem'
         with patch.object(settings, 'live_chat_enabled', True), patch.object(conversations, 'handle_message', side_effect=fail):
-            response = self.client.post(self.chat_url, json={'text': 'hi'}, headers=self.headers)
+            response = self.client.post(self.chat_url, json={'request_id': str(uuid4()), 'text': 'hi'}, headers=self.headers)
         self.assertTrue(response.json()['rate_limited'])
         self.assertEqual(response.json()['outcome'], 'provider_error')
         self.assertNotIn('secret-provider', response.text)
@@ -168,7 +174,7 @@ class WorkspaceApiTests(unittest.TestCase):
         lock.acquire()
         try:
             with patch.object(settings, 'live_chat_enabled', True), patch.object(conversations, 'handle_message') as handle:
-                response = self.client.post(self.chat_url, json={'text': 'hi'}, headers=self.headers)
+                response = self.client.post(self.chat_url, json={'request_id': str(uuid4()), 'text': 'hi'}, headers=self.headers)
             self.assertEqual(response.status_code, 409)
             self.assertEqual(response.json()['detail'], 'conversation_busy')
             handle.assert_not_called()
@@ -213,3 +219,31 @@ class WorkspaceApiTests(unittest.TestCase):
         self.assertEqual(response.headers['access-control-allow-origin'], headers['Origin'])
         headers['Origin'] = 'https://untrusted.example'
         self.assertEqual(self.client.options('/api/demo/conversations', headers=headers).status_code, 400)
+
+    def test_status_reports_sending_flag_without_model_call(self):
+        response = self.client.get('/api/demo/status', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'store': 'Demo Store', 'live_chat_enabled': False})
+
+    def test_replayed_request_never_calls_agent(self):
+        self.use_conversation()
+        request_id = str(uuid4())
+        cached = {'request_id': request_id, 'conversation_id': str(self.conversation.id), 'status': 'BOT',
+                  'reply': 'Previously saved', 'outcome': 'reply', 'rate_limited': False}
+        with patch.object(settings, 'live_chat_enabled', True), \
+             patch.object(conversations.chat_requests, 'claim', return_value=cached), \
+             patch.object(conversations, 'handle_message') as handle:
+            response = self.client.post(self.chat_url, json={'request_id': request_id, 'text': 'hello'}, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), cached)
+        handle.assert_not_called()
+
+    def test_uncertain_request_returns_conflict_without_agent_call(self):
+        self.use_conversation()
+        with patch.object(settings, 'live_chat_enabled', True), \
+             patch.object(conversations.chat_requests, 'claim', side_effect=conversations.chat_requests.RequestConflict('request_in_progress')), \
+             patch.object(conversations, 'handle_message') as handle:
+            response = self.client.post(self.chat_url, json={'request_id': str(uuid4()), 'text': 'hello'}, headers=self.headers)
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()['detail'], 'request_in_progress')
+        handle.assert_not_called()

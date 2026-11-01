@@ -14,6 +14,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    JSON,
     Numeric,
     Text,
     UniqueConstraint,
@@ -249,6 +250,21 @@ class Message(Base):
     created_at: Mapped[datetime] = created_at_col()
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+
+
+class ChatRequest(Base):
+    """Durable web request claim and cached reply; never re-run an uncertain turn."""
+    __tablename__ = "chat_requests"
+    __table_args__ = (
+        Index("uq_chat_request_inflight", "conversation_id", unique=True,
+              postgresql_where=text("response IS NULL"), sqlite_where=text("response IS NULL")),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
+    text_hash: Mapped[str] = mapped_column(String(64))
+    response: Mapped[dict | None] = mapped_column(JSON(none_as_null=True).with_variant(JSONB(none_as_null=True), "postgresql"))
+    created_at: Mapped[datetime] = created_at_col()
 
 
 # ---------- Reservations and orders ----------

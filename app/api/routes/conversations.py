@@ -11,7 +11,7 @@ from app.api.dependencies import get_demo_seller, require_demo_access, require_l
 from app.api.schemas import ChatOut, ConversationOut, MessageIn, MessagePage
 from app.db.session import get_db
 from app.models import ConversationStatus, Seller
-from app.services import workspace
+from app.services import chat_requests, workspace
 
 router = APIRouter(prefix="/api/demo/conversations", tags=["demo conversations"], dependencies=[Depends(require_demo_access)])
 _locks: WeakValueDictionary = WeakValueDictionary()
@@ -55,6 +55,12 @@ def send(conversation_id: UUID, body: MessageIn, db: Session = Depends(get_db), 
         conversation = workspace.get_conversation(db, seller.id, conversation_id)
         if conversation.status == ConversationStatus.CLOSED:
             raise HTTPException(409, detail="conversation_closed")
+        try:
+            cached = chat_requests.claim(db, body.request_id, conversation.id, body.text)
+        except chat_requests.RequestConflict as error:
+            raise HTTPException(409, detail=str(error))
+        if cached is not None:
+            return cached
         trace: list[dict] = []
         reply = handle_message(db, seller, conversation, body.text, trace=trace)
         errors = [event["error"] for event in trace if event.get("type") == "error"]
@@ -62,7 +68,10 @@ def send(conversation_id: UUID, body: MessageIn, db: Session = Depends(get_db), 
         outcome = "handoff" if conversation.status == ConversationStatus.HANDOFF else "reply"
         if errors:
             outcome = "provider_error" if all(error.startswith(provider_types) for error in errors) else "application_error"
-        return {"conversation_id": conversation.id, "status": conversation.status, "reply": reply or None,
-                "outcome": outcome, "rate_limited": any(error.startswith("RateLimitError") for error in errors)}
+        result = ChatOut(request_id=body.request_id, conversation_id=conversation.id, status=conversation.status,
+                         reply=reply or None, outcome=outcome,
+                         rate_limited=any(error.startswith("RateLimitError") for error in errors))
+        chat_requests.finish(db, body.request_id, result.model_dump(mode="json"))
+        return result
     finally:
         lock.release()

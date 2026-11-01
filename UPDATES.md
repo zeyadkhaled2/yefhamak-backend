@@ -1,5 +1,13 @@
 # Brief handoff log
 
+## 2026-11-01 — Frontend/backend integration (plan step 2)
+- Frontend now has explicit Mock/Live modes. Live uses local backend connection, restores DB history, displays real paginated/filterable orders and multi-item details. Read-only seller actions; no simulated mutations in Live mode.
+- Demo access key stays in tab memory; never saved in browser storage/build environment. IDs/pending message text use origin-scoped sessionStorage. Mock data remains separate. No automatic model retries; explicit safe same-request checks and rate-limit/error notices.
+- Added `GET /api/demo/status` and required message `request_id`. Added durable `chat_requests` claims/cached replies, payload-conflict protection, unique in-flight claim per conversation. Interrupted actions stay blocked rather than being executed again.
+- Migration `c68a9e315f22` applied additively to configured DB, local demo key added to ignored `.env` without printing it, live sending remains disabled by default.
+- Real-database API smoke passed with one synthetic chat/two messages, verified persistent duplicate replay, zero model calls, no inventory/order changes. See saved output under `docs/testing`; frontend checks/build and browser connection/disabled-sending verified. Preserve evidence for later recordings/portfolio.
+- Final checks: 37 backend tests, 13 frontend tests, frontend production build, real frontend-client-to-local-backend status/order read, real PostgreSQL replay smoke, migration SQL generation. Live model reply quality remains untested while quota is limited.
+
 ## 2026-11-01 — Backend endpoints (plan step 1)
 - Added `/api/demo` conversation creation/metadata/history/send and read-only seller order list/details. Uses existing models and agent; no schema migration. Demo Store scoping, validated/paginated contracts, decimal-string money, hidden agent state/provider traces.
 - Separate bearer `DEMO_API_KEY` required. `LIVE_CHAT_ENABLED=false` by default prevents accidental quota use. CORS includes local frontend and `https://yefhamak.vercel.app`. Run one local worker; overlapping sends return 409. Durable idempotency and frontend integration remain next.

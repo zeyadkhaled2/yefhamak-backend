@@ -21,6 +21,7 @@ class ConversationOut(PublicModel):
 
 class MessageIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    request_id: UUID
     text: str = Field(min_length=1, max_length=600)
 
     @field_validator("text")
@@ -46,6 +47,7 @@ class MessagePage(BaseModel):
 
 
 class ChatOut(BaseModel):
+    request_id: UUID
     conversation_id: UUID
     status: ConversationStatus
     reply: str | None

@@ -2,7 +2,7 @@
 
 A conversational shopping assistant for a small Egyptian clothing store. An LLM interprets customer messages and calls backend tools to search products, reserve inventory, and create orders from store data.
 
-The goal is a local CV/demo MVP. The backend and terminal chat are implemented. The separate frontend checkout (`D:\yefhamak`) now has a mock browser chat at `/demo` and a seller orders view at `/seller/orders`; backend integration is next. WhatsApp integration and production deployment are deferred.
+The goal is a local CV/demo MVP. The separate frontend checkout (`D:\yefhamak`) has Mock/Live modes for browser chat at `/demo` and seller orders at `/seller/orders`. Live mode connects explicitly to this backend running locally. WhatsApp integration and public backend deployment are deferred.
 
 ## Features
 
@@ -96,7 +96,7 @@ uvicorn app.main:app --reload
 - [Database health](http://127.0.0.1:8000/health/db)
 - [API documentation](http://127.0.0.1:8000/docs)
 
-Conversation, history, chat, and read-only seller-order endpoints are available under `/api/demo`. They require a separate `DEMO_API_KEY`; live sending defaults to disabled (`LIVE_CHAT_ENABLED=false`) to preserve model quota. The separate frontend still uses its own mock mode and is not connected yet. See [API setup, endpoint contracts, and local examples](docs/api.md).
+Conversation, history, chat, connection status, and read-only seller-order endpoints are available under `/api/demo`. They require a separate `DEMO_API_KEY`; live sending defaults to disabled (`LIVE_CHAT_ENABLED=false`) to preserve model quota. The frontend can connect via its Live mode while Mock mode remains quota-free. Sending requires migration `c68a9e315f22` (`alembic upgrade head`) for durable request deduplication. See [API setup, endpoint contracts, and local examples](docs/api.md).
 
 ## Checks without model requests
 
@@ -156,7 +156,7 @@ API problems are excluded from graded pass rates. Code crashes count as failures
 ## Next steps
 
 1. Validate live order flow, then remaining categories in small batches after quota resets; investigate real failures.
-2. Connect the existing mock browser chat and seller orders view to the new backend endpoints, retaining clearly labeled mock mode while quota is unavailable; add durable message idempotency before automatic retries.
+2. Exercise the connected Live UI when model quota permits; Mock mode and connection/history/order checks remain available without model requests.
 3. Complete live integration checks and record a short demo with documented evaluation coverage.
 
 Paid API access is optional for continued development. Backend checks, UI development, and documentation can proceed without model calls. Real requests are still needed to validate model behavior and demonstrate the live assistant.

@@ -1,0 +1,2 @@
+PASS: real database conversation creation, guarded message persistence, durable replay, history, and order listing
+Exactly one synthetic conversation and two messages saved; no inventory/order changes, no model calls
