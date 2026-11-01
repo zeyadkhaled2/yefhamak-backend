@@ -1,0 +1,3 @@
+-r requirements.txt
+# Explicit dependency for FastAPI TestClient, rather than relying on OpenAI's deps.
+httpx>=0.27,<1

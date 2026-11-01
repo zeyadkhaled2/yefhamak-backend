@@ -1,5 +1,7 @@
 # Yefhamak
 
+[![Backend CI](https://github.com/zeyadkhaled2/yefhamak-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/zeyadkhaled2/yefhamak-backend/actions/workflows/ci.yml)
+
 A conversational shopping assistant for a small Egyptian clothing store. An LLM interprets customer messages and calls backend tools to search products, reserve inventory, and create orders from store data.
 
 The goal is a local CV/demo MVP. The separate frontend checkout (`D:\yefhamak`) has Mock/Live modes for browser chat at `/demo` and seller orders at `/seller/orders`. Live mode connects explicitly to this backend running locally. WhatsApp integration and public backend deployment are deferred.
@@ -99,6 +101,8 @@ uvicorn app.main:app --reload
 Conversation, history, chat, connection status, and read-only seller-order endpoints are available under `/api/demo`. They require a separate `DEMO_API_KEY`; live sending defaults to disabled (`LIVE_CHAT_ENABLED=false`) to preserve model quota. The frontend can connect via its Live mode while Mock mode remains quota-free. Sending requires migration `c68a9e315f22` (`alembic upgrade head`) for durable request deduplication. See [API setup, endpoint contracts, and local examples](docs/api.md).
 
 ## Checks without model requests
+
+GitHub Actions runs the offline tests on every push and pull request, without model keys or a live database. See [CI workflow and saved results](docs/ci.md). For local development, install test dependencies with `pip install -r requirements-dev.txt`.
 
 These commands use no OpenRouter quota or database connections:
 

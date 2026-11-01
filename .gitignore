@@ -6,5 +6,6 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+test-results/
 # Generated transcripts can contain customer data. Existing tracked sample is retained.
 eval_results/*.json
