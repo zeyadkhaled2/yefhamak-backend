@@ -1,5 +1,9 @@
 # Brief handoff log
 
+## 2026-11-01 — Public GitHub repositories
+- Both `zeyadkhaled2/yefhamak-backend` and `zeyadkhaled2/yefhamak` changed from private to public and verified via GitHub API. Reviewed publishable branch/tag history for configured local secrets and common credential patterns; no findings. Local `.env` remains ignored.
+- Discussed CI/Docker as follow-up learning work; no workflows or containers added in this step. Prioritize offline CI, then isolated PostgreSQL integration tests; container packaging can follow. Keep real LLM calls out of default CI.
+
 ## 2026-11-01 — Frontend/backend integration (plan step 2)
 - Frontend now has explicit Mock/Live modes. Live uses local backend connection, restores DB history, displays real paginated/filterable orders and multi-item details. Read-only seller actions; no simulated mutations in Live mode.
 - Demo access key stays in tab memory; never saved in browser storage/build environment. IDs/pending message text use origin-scoped sessionStorage. Mock data remains separate. No automatic model retries; explicit safe same-request checks and rate-limit/error notices.
