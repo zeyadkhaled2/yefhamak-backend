@@ -2,3 +2,9 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+# Generated transcripts can contain customer data. Existing tracked sample is retained.
+eval_results/*.json

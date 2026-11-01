@@ -24,7 +24,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import String
 
-from app.db import Base
+from app.db.base import Base
 
 
 # ---------- Small helpers (so columns below stay short) ----------

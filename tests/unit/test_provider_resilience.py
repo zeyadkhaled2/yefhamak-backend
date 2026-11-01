@@ -4,8 +4,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from app.agent import loop
-from app.evals import run
-from app.evals.cases import Case
+from evals import run
+from evals.cases import Case
 
 
 class ProviderTests(unittest.TestCase):
@@ -31,7 +31,7 @@ class ProviderTests(unittest.TestCase):
         try:
             raise ValueError("test")
         except ValueError as error:
-            self.assertIn("test_step5b.py:", loop._where(error))
+            self.assertIn("test_provider_resilience.py:", loop._where(error))
             self.assertIn("test_crash_location", loop._where(error))
 
 

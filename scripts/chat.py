@@ -1,19 +1,19 @@
 """Chat with the bot in your terminal.
 
-    python -m app.chat_cli          continue the last test conversation
-    python -m app.chat_cli --new    start a fresh conversation
+    python -m scripts.chat          continue the last test conversation
+    python -m scripts.chat --new    start a fresh conversation
 
 Type 'exit' to quit. Lines starting with [tool] show what the bot looked up.
-Held items stay reserved for 20 minutes; run `python -m app.seed` to reset the whole demo store.
+Held items stay reserved for 20 minutes; run `python -m app.demo.seed` to reset the whole demo store.
 """
 import sys
 
 from sqlalchemy import select
 
 from app.agent.loop import handle_message
-from app.db import SessionLocal
+from app.db.session import SessionLocal
 from app.models import ChannelType, Conversation, ConversationStatus, Customer, Seller
-from app.seed import DEMO_NAME
+from app.demo.seed import DEMO_NAME
 
 CLI_CUSTOMER_ID = "cli-test"
 
@@ -23,7 +23,7 @@ def main() -> None:
     try:
         seller = db.scalar(select(Seller).where(Seller.name == DEMO_NAME))
         if seller is None:
-            print("Demo store not found. Run:  python -m app.seed")
+            print("Demo store not found. Run:  python -m app.demo.seed")
             return
 
         customer = db.scalar(

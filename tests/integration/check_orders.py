@@ -1,7 +1,7 @@
 """Tests the order flow WITHOUT the LLM: validation, preview/confirm rules, atomic order creation.
 
-    python -m app.seed
-    python -m app.check_orders
+    python -m app.demo.seed
+    python -m tests.integration.check_orders
 """
 import json
 from decimal import Decimal
@@ -9,8 +9,8 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.agent.tools import run_tool
-from app.check1 import make_conversation
-from app.db import SessionLocal
+from app.demo.fixtures import make_conversation
+from app.db.session import SessionLocal
 from app.models import (
     DeliveryZone,
     Message,
@@ -23,7 +23,7 @@ from app.models import (
     ShopQuestion,
     Variant,
 )
-from app.seed import DEMO_NAME
+from app.demo.seed import DEMO_NAME
 from app.services.inventory import reserve_item
 from app.services.orders import match_zone, normalize_phone
 
@@ -102,7 +102,7 @@ def main() -> None:
     try:
         seller = db.scalar(select(Seller).where(Seller.name == DEMO_NAME))
         if seller is None:
-            print("\nDemo store not found. Run:  python -m app.seed")
+            print("\nDemo store not found. Run:  python -m app.demo.seed")
             return
         run_flow_checks(db, seller)
         print("\nAll checks passed." if failures == 0 else f"\n{failures} check(s) failed.")

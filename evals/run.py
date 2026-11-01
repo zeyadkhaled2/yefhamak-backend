@@ -1,11 +1,11 @@
 """Runs the evaluation cases against the bot and prints a report.
 
-    python -m app.evals.run --quick              the 8 most important cases
-    python -m app.evals.run                      everything
-    python -m app.evals.run --category order_flow
-    python -m app.evals.run --case full-order
-    python -m app.evals.run --repeat 3           run each case 3 times (LLMs are not perfectly repeatable)
-    python -m app.evals.run --price-in 0.15 --price-out 0.60     USD per 1M tokens, to estimate cost per conversation
+    python -m evals.run --quick              the 8 most important cases
+    python -m evals.run                      everything
+    python -m evals.run --category order_flow
+    python -m evals.run --case full-order
+    python -m evals.run --repeat 3           run each case 3 times (LLMs are not perfectly repeatable)
+    python -m evals.run --price-in 0.15 --price-out 0.60     USD per 1M tokens, to estimate cost per conversation
 
 WARNING: every case resets the Demo Store (it re-runs the seed), so earlier test orders and chats are deleted.
 """
@@ -20,10 +20,10 @@ from sqlalchemy import select
 
 from app.agent.guards import allowed_numbers, numbers_in
 from app.agent.loop import handle_message
-from app.config import settings
-from app.db import SessionLocal
-from app.evals.cases import CASES, Case
-from app.evals.checks import GLOBAL_CHECKS, Run, TurnResult
+from app.core.config import settings
+from app.db.session import SessionLocal
+from evals.cases import CASES, Case
+from evals.checks import GLOBAL_CHECKS, Run, TurnResult
 from app.models import (
     ChannelType,
     Conversation,
@@ -34,7 +34,7 @@ from app.models import (
     Product,
     Seller,
 )
-from app.seed import DEMO_NAME, seed
+from app.demo.seed import DEMO_NAME, seed
 
 RESULTS_DIR = Path("eval_results")
 

@@ -8,8 +8,8 @@ from typing import Callable
 
 from sqlalchemy import select
 
-from app.check1 import make_conversation
-from app.evals.checks import (
+from app.demo.fixtures import make_conversation
+from evals.checks import (
     Check,
     asks_question,
     conversation_is,

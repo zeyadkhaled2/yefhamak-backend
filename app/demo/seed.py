@@ -1,12 +1,12 @@
 """Creates a fake store for testing. Safe to run again: it wipes and recreates the demo store.
 
-Run from the project root:  python -m app.seed
+Run from the project root:  python -m app.demo.seed
 """
 from decimal import Decimal
 
 from sqlalchemy import delete, select
 
-from app.db import SessionLocal
+from app.db.session import SessionLocal
 from app.models import (
     Channel,
     ChannelType,

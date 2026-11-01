@@ -1,13 +1,13 @@
 
 """Does your model support tool calling? Run from the project root:
  
-    python -m app.tool_test
+    python -m scripts.check_provider
  
 Expected: the first message makes the model CALL the search tool, the second (a greeting) gets a normal TEXT reply.
 """
 from openai import OpenAI
  
-from app.config import settings
+from app.core.config import settings
  
 TOOLS = [
     {

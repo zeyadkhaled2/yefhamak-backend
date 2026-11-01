@@ -2,7 +2,7 @@
 
 A conversational shopping assistant for a small Egyptian clothing store. An LLM interprets customer messages and calls backend tools to search products, reserve inventory, and create orders from store data.
 
-The goal is a local CV/demo MVP. The backend and terminal chat are implemented; a browser chat and seller orders view are planned. WhatsApp integration and production deployment are deferred.
+The goal is a local CV/demo MVP. The backend and terminal chat are implemented. The separate frontend checkout (`D:\yefhamak`) now has a mock browser chat at `/demo` and a seller orders view at `/seller/orders`; backend integration is next. WhatsApp integration and production deployment are deferred.
 
 ## Features
 
@@ -32,6 +32,31 @@ FastAPI currently exposes health checks and API documentation.
 
 Stack: Python, FastAPI, SQLAlchemy, PostgreSQL/psycopg, Alembic, Pydantic Settings, and the OpenAI Python client targeting OpenRouter.
 
+## Project layout
+
+```text
+app/
+  main.py              FastAPI entry point
+  api/routes/          HTTP endpoints
+  core/                Settings and environment configuration
+  db/                  Declarative base and database sessions
+  models.py            SQLAlchemy tables
+  services/            Catalog, inventory, and order business rules
+  agent/               Model loop, prompts, tools, and guardrails
+  demo/                Demo store seed and shared fixtures
+scripts/               Terminal chat, seller inbox, and provider probe
+evals/                 Live model conversation cases, checks, and runner
+tests/
+  unit/                Offline tests discovered by unittest
+  integration/         Manually invoked checks against the demo database
+alembic/               Database migration environment and revision history
+docs/                  Historical test notes
+eval_results/          Generated model evaluation reports
+UPDATES.md             Brief implementation handoff log
+```
+
+Routes call application logic; store rules stay in `services/`, and model orchestration stays in `agent/`. Demo commands and checks are outside runtime code. Run all module commands from the repository root.
+
 ## Setup
 
 Use Python 3.10+ and a PostgreSQL database (configured for Neon). From the project root in PowerShell:
@@ -42,7 +67,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Create `.env` in the project root with your own credentials:
+Copy `.env.example` to `.env` in the project root and fill in your credentials:
 
 ```dotenv
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
@@ -55,8 +80,8 @@ LLM_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free
 
 ```powershell
 alembic upgrade head
-python -m app.seed
-python -m app.chat_cli --new
+python -m app.demo.seed
+python -m scripts.chat --new
 ```
 
 **Seeding resets Demo Store data, including previous chats and orders. Use a dedicated demo database.** Type `exit` to leave chat; omit `--new` to continue the last eligible CLI conversation. Debug output shows tool calls.
@@ -71,46 +96,49 @@ uvicorn app.main:app --reload
 - [Database health](http://127.0.0.1:8000/health/db)
 - [API documentation](http://127.0.0.1:8000/docs)
 
-There is no HTTP chat endpoint or browser UI yet.
+There is no HTTP chat endpoint yet. The separate frontend's mock UI runs with `npm run dev` from its own folder and does not connect to this backend.
 
 ## Checks without model requests
 
 These commands use no OpenRouter quota or database connections:
 
 ```powershell
-python -m app.check_guards
 python -m unittest discover -s tests -v
 ```
 
 The regression tests mock the provider and database. They check empty-response retries, crash locations, error classification, immediate daily-limit stopping, and saving partial results. They import project configuration, so a valid `.env` is still needed.
 
+The same command also runs guardrail checks and HTTP health checks with a mocked database. Database integration checks below are not executed by test discovery.
+
 These checks require the demo database and modify its data, but do not call the model:
 
 ```powershell
-python -m app.check1
-python -m app.check_orders
+python -m tests.integration.check_catalog_inventory
+python -m tests.integration.check_orders
 ```
 
 To inspect orders and unanswered shop questions:
 
 ```powershell
-python -m app.show_inbox
+python -m scripts.show_inbox
 ```
 
 ## Live evaluations and limited quota
 
 **Each evaluation case resets the Demo Store. These commands consume API requests.**
 
+For a small tool-calling capability probe, run `python -m scripts.check_provider` (also consumes API requests).
+
 ```powershell
 # Prioritize the previously interrupted order flow
-python -m app.evals.run --case full-order
+python -m evals.run --case full-order
 
 # Run small groups as quota allows
-python -m app.evals.run --category reservation
-python -m app.evals.run --quick
+python -m evals.run --category reservation
+python -m evals.run --quick
 
 # Full suite when sufficient quota is available
-python -m app.evals.run
+python -m evals.run
 ```
 
 One conversation can make several model requests because tool rounds call the model again. Empty-response retries and SDK retries can add requests. Avoid repeated full-suite runs while quota is limited.
@@ -128,7 +156,7 @@ API problems are excluded from graded pass rates. Code crashes count as failures
 ## Next steps
 
 1. Validate live order flow, then remaining categories in small batches after quota resets; investigate real failures.
-2. Add a local browser chat and seller orders view. UI work can use clearly labeled mock responses while quota is unavailable; a mock mode has not been implemented yet.
+2. Connect the existing mock browser chat and seller orders view to backend endpoints, retaining clearly labeled mock mode while quota is unavailable.
 3. Complete live integration checks and record a short demo with documented evaluation coverage.
 
 Paid API access is optional for continued development. Backend checks, UI development, and documentation can proceed without model calls. Real requests are still needed to validate model behavior and demonstrate the live assistant.

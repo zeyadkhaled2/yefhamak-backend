@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.agent.guards import allowed_numbers, check_input, clean_output, numbers_in, unsupported_numbers
 from app.agent.prompt import build_system_prompt
 from app.agent.tools import TOOLS, run_tool
-from app.config import settings
+from app.core.config import settings
 from app.models import Conversation, ConversationStatus, DeliveryZone, Message, MessageDirection, Seller
 
 MAX_STEPS = 6       # most LLM rounds per customer message (stops endless loops)

@@ -1,17 +1,17 @@
 """Checks that search and reservations behave. Run after seeding:
 
-    python -m app.seed
-    python -m app.check_step3
+    python -m app.demo.seed
+    python -m tests.integration.check_catalog_inventory
 """
 import threading
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 from sqlalchemy import select
 
-from app.db import SessionLocal
-from app.models import ChannelType, Conversation, Customer, Product, Reservation, ReservationStatus, Seller, Variant
-from app.seed import DEMO_NAME
+from app.demo.fixtures import make_conversation
+from app.db.session import SessionLocal
+from app.models import Product, Reservation, ReservationStatus, Seller, Variant
+from app.demo.seed import DEMO_NAME
 from app.services.catalog import search_products
 from app.services.inventory import (
     available_quantity,
@@ -28,16 +28,6 @@ def check(ok: bool, label: str) -> None:
     print(("PASS  " if ok else "FAIL  ") + label)
     if not ok:
         failures += 1
-
-
-def make_conversation(db, seller_id) -> Conversation:
-    customer = Customer(seller_id=seller_id, channel_type=ChannelType.WHATSAPP, external_id=f"test-{uuid.uuid4().hex[:8]}")
-    db.add(customer)
-    db.flush()
-    conversation = Conversation(seller_id=seller_id, customer_id=customer.id)
-    db.add(conversation)
-    db.commit()
-    return conversation
 
 
 def run_search_checks(db, seller) -> None:
@@ -104,7 +94,7 @@ def main() -> None:
     try:
         seller = db.scalar(select(Seller).where(Seller.name == DEMO_NAME))
         if seller is None:
-            print("Demo store not found. Run:  python -m app.seed")
+            print("Demo store not found. Run:  python -m app.demo.seed")
             return
         run_search_checks(db, seller)
         run_reservation_checks(db, seller)

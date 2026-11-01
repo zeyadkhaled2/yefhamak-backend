@@ -1,12 +1,12 @@
 """The shop's view for now: prints the orders and the questions waiting for the team.
 
-    python -m app.show_inbox
+    python -m scripts.show_inbox
 """
 from sqlalchemy import select
 
-from app.db import SessionLocal
+from app.db.session import SessionLocal
 from app.models import Order, Product, Seller, ShopQuestion, ShopQuestionStatus, Variant
-from app.seed import DEMO_NAME
+from app.demo.seed import DEMO_NAME
 
 
 def main() -> None:
@@ -14,7 +14,7 @@ def main() -> None:
     try:
         seller = db.scalar(select(Seller).where(Seller.name == DEMO_NAME))
         if seller is None:
-            print("Demo store not found. Run:  python -m app.seed")
+            print("Demo store not found. Run:  python -m app.demo.seed")
             return
 
         orders = db.scalars(select(Order).where(Order.seller_id == seller.id).order_by(Order.created_at.desc())).all()
