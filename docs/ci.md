@@ -2,6 +2,8 @@
 
 [Backend CI runs](https://github.com/zeyadkhaled2/yefhamak-backend/actions/workflows/ci.yml)
 
+The first hosted runs passed in both repos. [Saved run IDs, commit SHAs, conclusions, and artifact names](testing/2026-11-01-ci-runs.json) preserve that evidence alongside [local offline output](testing/2026-11-01-ci-backend-local.txt).
+
 GitHub Actions checks every push and pull request. You can also select **Actions → Backend CI → Run workflow**. The workflow is `.github/workflows/ci.yml`.
 
 On a standard Ubuntu runner with Python 3.12 it:

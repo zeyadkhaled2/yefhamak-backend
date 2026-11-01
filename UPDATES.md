@@ -4,6 +4,7 @@
 - Added GitHub Actions checks on pushes, PRs, and manual dispatch. Backend: Python 3.12 compilation + offline unit suite; frontend: Node 24 locked install + tests + production build. Read-only permissions, pinned action commits, timeouts, cancel superseded runs, test-log artifacts retained 14 days.
 - No model keys, real DB credentials, seeding, live evaluations, or external contact submissions. PostgreSQL concurrency integration tests and Docker remain later work. CI reports failures but does not gate direct main pushes/Vercel deployment.
 - Backend setup/docs: `requirements-dev.txt`, `docs/ci.md`; frontend has a matching guide and `npm test` script.
+- First hosted runs passed: backend `41345468393`, frontend `41345478224`; both log artifacts uploaded successfully. Evidence saved in `docs/testing/2026-11-01-ci-runs.json`. Local verification also passed: 37 backend tests, 13 frontend tests, production build; zero model calls or real DB access.
 
 ## 2026-11-01 — Public GitHub repositories
 - Both `zeyadkhaled2/yefhamak-backend` and `zeyadkhaled2/yefhamak` changed from private to public and verified via GitHub API. Reviewed publishable branch/tag history for configured local secrets and common credential patterns; no findings. Local `.env` remains ignored.
