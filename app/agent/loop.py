@@ -8,6 +8,7 @@
 """
 import json
 import time
+import traceback
 from datetime import datetime, timezone
 
 from openai import OpenAI
@@ -29,6 +30,10 @@ TEMP_ERROR_REPLY = "حصلت مشكلة مؤقتة عندنا، ممكن تبع�
 _client: OpenAI | None = None
 
 
+class EmptyProviderResponse(RuntimeError):
+    """The model provider answered without any choices (free models do this when the provider is overloaded)."""
+
+
 def _log(trace: list | None, **event) -> None:
     """Records what happened (tool calls, guard actions, errors) so tests can inspect it. Does nothing when trace is None."""
     if trace is not None:
@@ -47,6 +52,31 @@ def get_client() -> OpenAI:
             max_retries=2,
         )
     return _client
+
+
+def _chat(messages: list[dict]):
+    """One LLM call. A reply with no choices is retried a couple of times before we give up."""
+    problem = "no choices in the response"
+    for attempt in range(3):
+        response = get_client().chat.completions.create(
+            model=settings.llm_model,
+            messages=messages,
+            tools=TOOLS,
+            temperature=0,
+            max_tokens=800,
+        )
+        if getattr(response, "choices", None):
+            return response
+        problem = str(getattr(response, "error", None) or problem)[:200]
+        if attempt < 2:
+            time.sleep(1.5 * (attempt + 1))
+    raise EmptyProviderResponse(f"provider returned no answer: {problem}")
+
+
+def _where(e: Exception) -> str:
+    """The file and line where an exception happened, so a crash is easy to find."""
+    frames = traceback.extract_tb(e.__traceback__)
+    return f"{frames[-1].filename.split(chr(92))[-1].split('/')[-1]}:{frames[-1].lineno} in {frames[-1].name}" if frames else "?"
 
 
 def _history(db: Session, conversation_id) -> list[dict]:
@@ -126,13 +156,7 @@ def handle_message(
         messages += _history(db, conversation.id)
 
         for _ in range(MAX_STEPS):
-            response = get_client().chat.completions.create(
-                model=settings.llm_model,
-                messages=messages,
-                tools=TOOLS,
-                temperature=0,
-                max_tokens=800,
-            )
+            response = _chat(messages)
             if response.usage:
                 tokens_in += response.usage.prompt_tokens or 0
                 tokens_out += response.usage.completion_tokens or 0
@@ -190,9 +214,9 @@ def handle_message(
 
     except Exception as e:  # network problem, rate limit on a free model, etc.
         db.rollback()
-        _log(trace, type="error", error=f"{type(e).__name__}: {str(e)[:200]}")
+        _log(trace, type="error", error=f"{type(e).__name__}: {str(e)[:200]} [{_where(e)}]")
         if debug:
-            print(f"   [error] {type(e).__name__}: {str(e)[:300]}")
+            print(f"   [error] {type(e).__name__}: {str(e)[:300]} [{_where(e)}]")
         reply = TEMP_ERROR_REPLY
 
     _save_reply(db, conversation, reply, tokens_in, tokens_out, started, settings.llm_model)

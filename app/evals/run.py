@@ -38,6 +38,17 @@ from app.seed import DEMO_NAME, seed
 
 RESULTS_DIR = Path("eval_results")
 
+# Problems on the provider's side. Anything else that crashes is a bug in OUR code and is counted as a failure.
+_INFRA_ERRORS = ("RateLimitError", "APIConnectionError", "APITimeoutError", "InternalServerError", "EmptyProviderResponse")
+
+
+def is_infra_error(error: str) -> bool:
+    return error.startswith(_INFRA_ERRORS)
+
+
+def is_daily_limit(error: str) -> bool:
+    return error.startswith("RateLimitError") and "per-day" in error.lower()
+
 
 def compute_allowed(db, seller, conversation, turns) -> set[int]:
     """Numbers the bot may say: shop prices (x quantity, + delivery), anything a tool produced, the customer's phone."""
@@ -90,24 +101,29 @@ def run_case(case: Case) -> dict:
                 tokens_out=(out.tokens_out or 0) if out else 0,
                 latency_ms=(out.latency_ms or 0) if out else 0,
             ))
+            if any(is_daily_limit(e.get("error", "")) for e in trace if e.get("type") == "error"):
+                break  # No more requests, even within this conversation, once today's quota is gone.
 
         run = Run(db=db, seller=seller, conversation=conversation, turns=turns)
         run.allowed = compute_allowed(db, seller, conversation, turns)
 
-        infra_errors = [e["error"] for t in turns for e in t.events if e.get("type") == "error"]
-        failures = []
+        all_errors = [e["error"] for t in turns for e in t.events if e.get("type") == "error"]
+        infra_errors = [e for e in all_errors if is_infra_error(e)]
+        crashes = [e for e in all_errors if not is_infra_error(e)]
+        failures = [f"crashed: {c}" for c in crashes]
         for check in GLOBAL_CHECKS + case.checks:
             reason = check.fn(run)
             if reason:
                 failures.append(f"{check.name}: {reason}")
 
-        status = "error" if infra_errors else ("pass" if not failures else "fail")
+        status = "fail" if crashes else ("error" if infra_errors else ("pass" if not failures else "fail"))
         return {
             "id": case.id,
             "category": case.category,
             "status": status,
             "failures": failures,
             "infra_errors": infra_errors,
+            "quota_exhausted": any(is_daily_limit(e) for e in infra_errors),
             "tokens_in": sum(t.tokens_in for t in turns),
             "tokens_out": sum(t.tokens_out for t in turns),
             "latency_ms": [t.latency_ms for t in turns if t.latency_ms],
@@ -161,7 +177,10 @@ def main() -> None:
     print(f"Running {len(cases)} case(s) x {args.repeat}. Each case resets the Demo Store.\n")
 
     results = []
+    stopped = False
     for case in cases:
+        if stopped:
+            break
         for i in range(args.repeat):
             result = run_case(case)
             results.append(result)
@@ -171,7 +190,14 @@ def main() -> None:
             if result["status"] == "fail":
                 print_failure(result)
             elif result["status"] == "error":
-                print(f"      infrastructure error (not counted as a failure): {result['infra_errors'][0]}")
+                print(f"      API problem (not counted as a failure): {result['infra_errors'][0][:160]}")
+            if result["quota_exhausted"]:
+                completed = {c.id: sum(r["id"] == c.id and not r["quota_exhausted"] for r in results) for c in cases}
+                left = [f"{c.id} ({args.repeat - completed[c.id]} run(s) remaining)" for c in cases if completed[c.id] < args.repeat]
+                print("\nSTOPPED: the daily free-model limit is used up. Results so far are saved below.")
+                print("Run again after it resets (or after adding credits). Still to complete: " + (", ".join(left) or "none"))
+                stopped = True
+                break
 
     # ---------- Report ----------
     graded = [r for r in results if r["status"] != "error"]
@@ -203,7 +229,8 @@ def main() -> None:
 
     RESULTS_DIR.mkdir(exist_ok=True)
     path = RESULTS_DIR / f"eval-{datetime.now():%Y%m%d-%H%M%S}.json"
-    path.write_text(json.dumps({"model": settings.llm_model, "results": results}, ensure_ascii=False, indent=2), encoding="utf-8")
+    path.write_text(json.dumps({"model": settings.llm_model, "stopped_on_daily_limit": stopped,
+                                "remaining": left if stopped else [], "results": results}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\nFull transcripts saved to {path}")
 
 
