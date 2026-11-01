@@ -4,10 +4,21 @@ Run from the project root:  python -m app.seed
 """
 from decimal import Decimal
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.db import SessionLocal
-from app.models import Channel, ChannelType, DeliveryZone, Faq, Product, Seller, Variant
+from app.models import (
+    Channel,
+    ChannelType,
+    DeliveryZone,
+    Faq,
+    Order,
+    OrderItem,
+    Product,
+    Reservation,
+    Seller,
+    Variant,
+)
 
 DEMO_NAME = "Demo Store"
 
@@ -36,10 +47,17 @@ PRODUCTS = [
 ]
 
 
-def seed() -> None:
+def seed(quiet: bool = False) -> None:
     db = SessionLocal()
     try:
-        # One DELETE statement: the database cascades and removes everything that belonged to the old demo store.
+        # Wipe the old demo store. Orders and reservations point at variants, customers and conversations with
+        # "no cascade" links (on purpose: deleting a product must never silently delete real orders), so we remove
+        # them first, children before parents. Everything else is removed by the seller's cascade.
+        old_seller_ids = select(Seller.id).where(Seller.name == DEMO_NAME)
+        db.execute(delete(Reservation).where(Reservation.seller_id.in_(old_seller_ids)))
+        old_order_ids = select(Order.id).where(Order.seller_id.in_(old_seller_ids))
+        db.execute(delete(OrderItem).where(OrderItem.order_id.in_(old_order_ids)))
+        db.execute(delete(Order).where(Order.seller_id.in_(old_seller_ids)))
         db.execute(delete(Seller).where(Seller.name == DEMO_NAME))
 
         seller = Seller(
@@ -76,7 +94,8 @@ def seed() -> None:
 
         db.commit()
         variants = sum(len(p["variants"]) for p in PRODUCTS)
-        print(f"Seeded '{DEMO_NAME}': {len(PRODUCTS)} products, {variants} variants. seller_id={seller.id}")
+        if not quiet:
+            print(f"Seeded '{DEMO_NAME}': {len(PRODUCTS)} products, {variants} variants. seller_id={seller.id}")
     finally:
         db.close()
 

@@ -29,6 +29,12 @@ TEMP_ERROR_REPLY = "حصلت مشكلة مؤقتة عندنا، ممكن تبع�
 _client: OpenAI | None = None
 
 
+def _log(trace: list | None, **event) -> None:
+    """Records what happened (tool calls, guard actions, errors) so tests can inspect it. Does nothing when trace is None."""
+    if trace is not None:
+        trace.append(event)
+
+
 def get_client() -> OpenAI:
     global _client
     if _client is None:
@@ -62,7 +68,12 @@ def _bad_numbers(db: Session, seller: Seller, conversation: Conversation, reply:
     state = conversation.state or {}
     shown = [m["price_egp"] for m in state.get("last_search", [])]
     fees = db.scalars(select(DeliveryZone.fee).where(DeliveryZone.seller_id == seller.id)).all()
-    allowed = allowed_numbers(shown, fees) | tool_numbers | numbers_in(json.dumps(state.get("last_order", {})))
+    allowed = (
+        allowed_numbers(shown, fees)
+        | tool_numbers
+        | numbers_in(json.dumps(state.get("last_order", {})))
+        | numbers_in(json.dumps(state.get("order_preview", {}), ensure_ascii=False))  # the customer's own phone / address
+    )
     return unsupported_numbers(reply, allowed)
 
 
@@ -79,7 +90,14 @@ def _save_reply(db: Session, conversation: Conversation, reply: str, tokens_in=0
     db.commit()
 
 
-def handle_message(db: Session, seller: Seller, conversation: Conversation, user_text: str, debug: bool = False) -> str:
+def handle_message(
+    db: Session,
+    seller: Seller,
+    conversation: Conversation,
+    user_text: str,
+    debug: bool = False,
+    trace: list | None = None,
+) -> str:
     # 1. Save the customer's message
     db.add(Message(conversation_id=conversation.id, direction=MessageDirection.IN, body=user_text))
     conversation.last_customer_message_at = datetime.now(timezone.utc)
@@ -90,6 +108,7 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
 
     blocked = check_input(user_text)
     if blocked:
+        _log(trace, type="input_blocked")
         if debug:
             print("   [guard] input blocked before reaching the model")
         _save_reply(db, conversation, blocked)
@@ -99,7 +118,8 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
     tokens_in = tokens_out = 0
     reply = ""
     corrected = False
-    tool_numbers: set[int] = set()  # numbers produced by tools this turn (order totals etc.)
+    # Numbers the bot may repeat: produced by tools this turn (order totals etc.) or typed by the customer as a phone number
+    tool_numbers: set[int] = {n for n in numbers_in(user_text) if n >= 10**8}
 
     try:
         messages = [{"role": "system", "content": build_system_prompt(db, seller, conversation)}]
@@ -124,6 +144,7 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
                 bad = _bad_numbers(db, seller, conversation, candidate, tool_numbers) if candidate else []
                 if bad and not corrected:  # 4. one automatic correction
                     corrected = True
+                    _log(trace, type="number_correction", numbers=bad)
                     if debug:
                         print(f"   [guard] reply contained numbers not in the shop data: {bad}. Asking the model to fix it.")
                     messages.append({"role": "assistant", "content": candidate})
@@ -147,6 +168,9 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
             })
             for call in message.tool_calls:
                 result = run_tool(db, seller, conversation, call.function.name, call.function.arguments)
+                _log(trace, type="tool", name=call.function.name, args=call.function.arguments, result=result)
+                if call.function.name == "create_order":
+                    tool_numbers |= numbers_in(call.function.arguments)  # the customer's phone and address
                 if debug:
                     print(f"   [tool] {call.function.name}({call.function.arguments})")
                     print(f"          -> {json.dumps(result, ensure_ascii=False)[:400]}")
@@ -155,6 +179,7 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
                 messages.append({"role": "tool", "tool_call_id": call.id, "content": result_text})
 
         if not reply:  # no safe answer: give up safely and let a human continue
+            _log(trace, type="guard_handoff")
             if debug:
                 print("   [guard] no safe answer produced: handing off to a human")
             reply = HANDOFF_REPLY
@@ -165,6 +190,7 @@ def handle_message(db: Session, seller: Seller, conversation: Conversation, user
 
     except Exception as e:  # network problem, rate limit on a free model, etc.
         db.rollback()
+        _log(trace, type="error", error=f"{type(e).__name__}: {str(e)[:200]}")
         if debug:
             print(f"   [error] {type(e).__name__}: {str(e)[:300]}")
         reply = TEMP_ERROR_REPLY
