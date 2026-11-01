@@ -1,5 +1,8 @@
 # Brief handoff log
 
+## 2026-11-01 — README refreshed
+- Documented current features, architecture, setup, CLI/API entry points, offline checks, quota-conscious live evaluation, honest validation status, and MVP next steps. Mock UI responses are a proposed development approach, not an existing feature.
+
 ## 2026-11-01 — Step 5b applied
 - Scope: local CV/demo MVP; deployment and WhatsApp integration deferred.
 - Applied supplied Step 5b files to `app/agent/loop.py` and `app/evals/run.py`.
