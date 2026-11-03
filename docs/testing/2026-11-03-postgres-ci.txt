@@ -1,0 +1,23 @@
+GitHub hosted PostgreSQL job log excerpt (UTC timestamps)
+Run: https://github.com/zeyadkhaled2/yefhamak-backend/actions/runs/41630219736
+Job: 125897731248
+
+2026-11-03T11:47:20.3882276Z test_cannot_attach_reservation_to_another_sellers_conversation (test_postgres.PostgresTests.test_cannot_attach_reservation_to_another_sellers_conversation) ... ok
+2026-11-03T11:47:20.4397488Z test_cannot_reserve_another_sellers_variant (test_postgres.PostgresTests.test_cannot_reserve_another_sellers_variant) ... ok
+2026-11-03T11:47:20.4895327Z test_catalog_ambiguity_and_franco_search (test_postgres.PostgresTests.test_catalog_ambiguity_and_franco_search) ... ok
+2026-11-03T11:47:20.5423436Z test_catalog_and_conversation_queries_are_seller_isolated (test_postgres.PostgresTests.test_catalog_and_conversation_queries_are_seller_isolated) ... ok
+2026-11-03T11:47:20.5990008Z test_concurrent_different_requests_share_one_inflight_slot (test_postgres.PostgresTests.test_concurrent_different_requests_share_one_inflight_slot) ... ok
+2026-11-03T11:47:20.6514870Z test_concurrent_duplicate_request_is_claimed_once (test_postgres.PostgresTests.test_concurrent_duplicate_request_is_claimed_once) ... ok
+2026-11-03T11:47:20.7081452Z test_concurrent_release_is_idempotent (test_postgres.PostgresTests.test_concurrent_release_is_idempotent) ... ok
+2026-11-03T11:47:20.7627429Z test_expired_hold_rolls_back_order_and_items (test_postgres.PostgresTests.test_expired_hold_rolls_back_order_and_items) ... ok
+2026-11-03T11:47:20.8168677Z test_expiry_only_releases_expired_holds_once (test_postgres.PostgresTests.test_expiry_only_releases_expired_holds_once) ... ok
+2026-11-03T11:47:20.8654055Z test_invalid_quantity_never_changes_stock (test_postgres.PostgresTests.test_invalid_quantity_never_changes_stock) ... ok
+2026-11-03T11:47:20.9415026Z test_multi_item_order_confirmation_and_duplicate_protection (test_postgres.PostgresTests.test_multi_item_order_confirmation_and_duplicate_protection) ... ok
+2026-11-03T11:47:20.9952654Z test_orders_are_seller_isolated_and_search_escapes_wildcards (test_postgres.PostgresTests.test_orders_are_seller_isolated_and_search_escapes_wildcards) ... ok
+2026-11-03T11:47:21.0426817Z test_request_replay_survives_new_session_and_rejects_changed_text (test_postgres.PostgresTests.test_request_replay_survives_new_session_and_rejects_changed_text) ... ok
+2026-11-03T11:47:21.1040656Z test_two_customers_compete_for_last_item (test_postgres.PostgresTests.test_two_customers_compete_for_last_item) ... ok
+2026-11-03T11:47:21.1043066Z
+2026-11-03T11:47:21.1043764Z ----------------------------------------------------------------------
+2026-11-03T11:47:21.1044314Z Ran 14 tests in 0.808s
+2026-11-03T11:47:21.1044526Z
+2026-11-03T11:47:21.1044665Z OK

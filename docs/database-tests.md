@@ -36,3 +36,5 @@ Ordinary discovery skips PostgreSQL tests unless opted in through the dedicated 
 ## Evidence
 
 Open **Actions → Backend CI → PostgreSQL integration tests**. The `postgres-test-results` artifact retains output for 14 days, including failures. Dated records under `docs/testing/` preserve verified runs for later demo/portfolio use.
+
+Verified on 2026-11-03: [hosted run](https://github.com/zeyadkhaled2/yefhamak-backend/actions/runs/41630219736) passed 41 offline tests and all 14 PostgreSQL tests. [Saved PostgreSQL test output](testing/2026-11-03-postgres-ci.txt) and [run metadata](testing/2026-11-03-postgres-ci.json) remain in Git after artifacts expire. The isolation test also covers the atomic reservation fix that checks the conversation belongs to the same seller as the variant.

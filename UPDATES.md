@@ -5,6 +5,7 @@
 - CI adds PostgreSQL 16 service after offline tests. Covers last-item races, release/expiry, order confirmation/rollback, seller isolation, durable replay/concurrent claims. Model access forbidden. Neon and local app data are untouched; no local Docker installation required.
 - Guide: `docs/database-tests.md`; hosted test output saved as postgres-test-results artifacts (14 days).
 - Inspection for the isolation tests found reservation creation checked the variant's seller but not the conversation's seller. Added an atomic same-seller conversation condition before changing stock; the new test asserts cross-seller attachment is refused.
+- Verified hosted run 41630219736: 41 offline + 14 PostgreSQL tests passed; both artifacts uploaded. Saved hosted output/metadata under `docs/testing/2026-11-03-postgres-ci.*`. No model calls or application database access; disposable CI service removed on completion.
 
 ## 2026-11-01 — CI (plan step 1)
 - Added GitHub Actions checks on pushes, PRs, and manual dispatch. Backend: Python 3.12 compilation + offline unit suite; frontend: Node 24 locked install + tests + production build. Read-only permissions, pinned action commits, timeouts, cancel superseded runs, test-log artifacts retained 14 days.

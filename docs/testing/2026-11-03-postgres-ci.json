@@ -1,0 +1,17 @@
+{
+  "verified_date": "2026-11-03",
+  "repository": "zeyadkhaled2/yefhamak-backend",
+  "commit": "875005af4eab598b71a24b39d555d4c653846935",
+  "run_id": 41630219736,
+  "url": "https://github.com/zeyadkhaled2/yefhamak-backend/actions/runs/41630219736",
+  "conclusion": "success",
+  "offline_tests": 41,
+  "postgres_tests": 14,
+  "postgres_version": 16,
+  "job_id": 125897731248,
+  "artifact": "postgres-test-results",
+  "model_requests": 0,
+  "application_database_used": false,
+  "local_postgres_installed": false,
+  "note": "Test database was migrated, reset/reseeded per test, and discarded with the GitHub job. Last-item race repeated three times."
+}
