@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.models import Reservation, ReservationStatus, Variant
+from app.models import Conversation, Reservation, ReservationStatus, Variant
 
 RESERVATION_MINUTES = 20
 
@@ -43,6 +43,10 @@ def reserve_item(
                 Variant.id == variant_id,
                 Variant.seller_id == seller_id,
                 Variant.stock - Variant.reserved >= quantity,  # the check...
+                select(Conversation.id).where(
+                    Conversation.id == conversation_id,
+                    Conversation.seller_id == seller_id,
+                ).exists(),
             )
             .values(reserved=Variant.reserved + quantity)       # ...and the change, in one statement
             .execution_options(synchronize_session=False)

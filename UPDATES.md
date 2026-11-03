@@ -1,5 +1,11 @@
 # Brief handoff log
 
+## 2026-11-03 — PostgreSQL integration tests
+- Added opt-in assertion-based suite and `python -m tests.integration` runner. Explicit loopback TEST_DATABASE_URL/test DB name required; no .env fallback or remote target. Migrates a disposable DB, resets its application tables, and reuses the demo seed per test.
+- CI adds PostgreSQL 16 service after offline tests. Covers last-item races, release/expiry, order confirmation/rollback, seller isolation, durable replay/concurrent claims. Model access forbidden. Neon and local app data are untouched; no local Docker installation required.
+- Guide: `docs/database-tests.md`; hosted test output saved as postgres-test-results artifacts (14 days).
+- Inspection for the isolation tests found reservation creation checked the variant's seller but not the conversation's seller. Added an atomic same-seller conversation condition before changing stock; the new test asserts cross-seller attachment is refused.
+
 ## 2026-11-01 — CI (plan step 1)
 - Added GitHub Actions checks on pushes, PRs, and manual dispatch. Backend: Python 3.12 compilation + offline unit suite; frontend: Node 24 locked install + tests + production build. Read-only permissions, pinned action commits, timeouts, cancel superseded runs, test-log artifacts retained 14 days.
 - No model keys, real DB credentials, seeding, live evaluations, or external contact submissions. PostgreSQL concurrency integration tests and Docker remain later work. CI reports failures but does not gate direct main pushes/Vercel deployment.

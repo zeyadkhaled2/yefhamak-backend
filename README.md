@@ -102,7 +102,7 @@ Conversation, history, chat, connection status, and read-only seller-order endpo
 
 ## Checks without model requests
 
-GitHub Actions runs the offline tests on every push and pull request, without model keys or a live database. See [CI workflow and saved results](docs/ci.md). For local development, install test dependencies with `pip install -r requirements-dev.txt`.
+GitHub Actions runs offline tests plus PostgreSQL integration tests on every push and pull request, without model keys or access to the real application database. PostgreSQL starts as a disposable CI service. See [CI workflow and saved results](docs/ci.md) and [database test coverage/safety](docs/database-tests.md). For local development, install test dependencies with `pip install -r requirements-dev.txt`.
 
 These commands use no OpenRouter quota or database connections:
 
