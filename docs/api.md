@@ -35,7 +35,16 @@ All `/api/demo/*` routes require `Authorization: Bearer <DEMO_API_KEY>`. Health 
 - `GET /api/demo/orders?status=PENDING&q=Ahmed&limit=25&offset=0` — latest orders first, optional status/name/phone filter. Returns `items`, `total`, `limit`, `offset`; limit is 1–100. Status values are `PENDING`, `CONFIRMED`, `CANCELLED`. Search uses literal substrings, not SQL wildcard patterns.
 - `GET /api/demo/orders/{id}` — order details including product name/code, variant color/size, quantity, and saved unit price.
 
-Order money fields (`unit_price`, `delivery_fee`, `total`) are decimal **strings** in EGP to preserve precision. The real API's `CONFIRMED` status is not the mock UI's `reviewed` label. Order status changes, cancellation, and reset endpoints are intentionally outside this read-only seller step.
+Order money fields (`unit_price`, `delivery_fee`, `total`) are decimal **strings** in EGP to preserve precision. The real API's `CONFIRMED` status is not the mock UI's `reviewed` label. Reset endpoints are not exposed.
+
+Seller review actions (same bearer key, no body, no model calls):
+
+- `POST /api/demo/orders/{id}/confirm`: PENDING -> CONFIRMED. Subtracts item quantities from stock and reserved atomically. Returns updated OrderOut without items.
+- `POST /api/demo/orders/{id}/cancel`: PENDING or CONFIRMED -> CANCELLED. Pending releases reserved quantities; confirmed returns sold stock. Linked reservations become RELEASED. Returns updated OrderOut without items.
+
+Cancellation is final; cancelled orders cannot reopen. Repeating the current terminal action returns 200 with no inventory effects. Order-row locks serialize concurrent reviews; inventory and status commit together or roll back together. Customer confirmation in chat creates a PENDING order with CONFIRMED reservations; seller confirmation is the later step that consumes those units. No migration needed. No notifications, payment, shipping, or returns workflow is implemented.
+
+Errors: 404 `order_not_found` for absent/other-seller orders; 409 `invalid_order_transition` for confirmation after cancellation; 409 `order_inventory_conflict` for inconsistent items/linked holds or counters (nothing saved). Inspect inconsistent data before retrying. The Live details dialog supports these actions, disables controls while busy, asks for a second cancellation click, and refreshes the list. A failed response triggers a best-effort status read, never an automatic mutation retry. Close/reopen details to inspect the latest status; repeating the same action is safe.
 
 The web demo reuses the existing `WHATSAPP` customer channel enum with a `web-demo-` identifier; it does not send WhatsApp messages. Step 2 adds the `chat_requests` table and migration `c68a9e315f22`; run `alembic upgrade head` before using message sending. This migration was applied to the current configured database on 2026-11-01 without resetting data.
 
@@ -80,9 +89,9 @@ Only enable live chat when intentionally using available model quota. There is n
 
 ## Frontend connection
 
-In the frontend (`D:\yefhamak`), run `npm run dev`, open `/demo` or `/seller/orders`, select **Live · your backend**, and enter `http://127.0.0.1:8000` and your local `DEMO_API_KEY`. The local key is configured in the ignored backend `.env`; never use your OpenRouter key here. Connection, history, and read-only orders need no LLM quota. Message input is disabled when the backend reports live sending is off. Restart the backend after changing `.env` settings.
+In the frontend (`D:\yefhamak`), run `npm run dev`, open `/demo` or `/seller/orders`, select **Live · your backend**, and enter `http://127.0.0.1:8000` and your local `DEMO_API_KEY`. The local key is configured in the ignored backend `.env`; never use your OpenRouter key here. Connection, history, orders, and seller review actions need no LLM quota. Message input is disabled when the backend reports live sending is off. Restart the backend after changing `.env` settings.
 
-The access key stays only in JavaScript tab memory (and the password input while mounted). It is reused across client-side chat/seller navigation, and forgotten on reload or Disconnect. Conversation IDs and uncertain request IDs/text are stored in sessionStorage, scoped to the backend origin, to restore history and safely check an interrupted send. Use synthetic customer details. Mock order storage is separate. In Live mode orders use real backend statuses (`PENDING`, `CONFIRMED`, `CANCELLED`) and multi-item details; there are no pretend status mutations or resets.
+The access key stays only in JavaScript tab memory (and the password input while mounted). It is reused across client-side chat/seller navigation, and forgotten on reload or Disconnect. Conversation IDs and uncertain request IDs/text are stored in sessionStorage, scoped to the backend origin, to restore history and safely check an interrupted send. Use synthetic customer details. Mock order storage is separate. In Live mode orders use real backend statuses (`PENDING`, `CONFIRMED`, `CANCELLED`) and multi-item details; seller actions persist real backend changes; database reset is not exposed.
 
 ## Frontend access and hosting
 
@@ -96,4 +105,4 @@ Run `python -m unittest discover -s tests -v` for offline verification. See [ste
 
 An explicit `python -m scripts.check_api` check exercises the configured real database through FastAPI, creates one synthetic conversation/two messages, verifies guard-blocked input and duplicate replay, and forbids model calls with a test stub. It never resets the store or changes inventory/orders. [The recorded run](testing/2026-11-01-live-database-api.txt) passed. Do not run this as a production health probe because it writes a synthetic chat.
 
-Keep docs/testing evidence for future recordings and portfolio work. No video recording or portfolio work is part of this step. Next: validate actual model conversations when quota permits, then extend seller functionality with backend-supported state changes and access controls.
+Keep docs/testing evidence for future recordings and portfolio work. No video recording or portfolio work is part of this step. Next: validate actual model conversations when quota permits, containerize FastAPI and plan multi-user access controls.

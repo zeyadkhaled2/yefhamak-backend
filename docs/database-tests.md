@@ -17,6 +17,12 @@ Coverage:
 - Multi-item preview/confirmation, totals, duplicate-order prevention, and item details.
 - Atomic rollback when a reservation expires before order creation.
 - Durable request replay across sessions and competing request claims.
+- Seller confirmation consumes multi-item stock once, including repeated/concurrent requests.
+- Pending cancellation releases holds; confirmed cancellation restocks once and preserves other customers' holds.
+- Concurrent confirm/cancel resolves to cancellation with available stock restored.
+- Cancelled orders cannot reopen; missing/other-seller orders cannot be reviewed.
+- Inconsistent linked holds or counters reject review; a later-item failure rolls back all prior stock changes and order status.
+- Real HTTP review authentication, response statuses/money, replay, 404/409/422 behavior and persistence.
 
 Model access is blocked by a test stub. These checks establish PostgreSQL behavior for the tested cases, not model quality or every possible timing/interleaving.
 

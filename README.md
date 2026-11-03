@@ -100,7 +100,7 @@ uvicorn app.main:app --reload
 - [Database health](http://127.0.0.1:8000/health/db)
 - [API documentation](http://127.0.0.1:8000/docs)
 
-Conversation, history, chat, connection status, and read-only seller-order endpoints are available under `/api/demo`. They require a separate `DEMO_API_KEY`; live sending defaults to disabled (`LIVE_CHAT_ENABLED=false`) to preserve model quota. The frontend can connect via its Live mode while Mock mode remains quota-free. Sending requires migration `c68a9e315f22` (`alembic upgrade head`) for durable request deduplication. See [API setup, endpoint contracts, and local examples](docs/api.md).
+Conversation, history, chat, connection status, and seller-order read/confirm/cancel endpoints are available under `/api/demo`. They require a separate `DEMO_API_KEY`; live sending defaults to disabled (`LIVE_CHAT_ENABLED=false`) to preserve model quota. The frontend can connect via its Live mode while Mock mode remains quota-free. Sending requires migration `c68a9e315f22` (`alembic upgrade head`) for durable request deduplication. See [API setup, endpoint contracts, and local examples](docs/api.md).
 
 ## Checks without model requests
 

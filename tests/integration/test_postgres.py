@@ -239,6 +239,184 @@ class PostgresTests(unittest.TestCase):
                 claim(other, request_id, self.a.id, 'different')
         self.assertEqual(self.count(ChatRequest), 1)
 
+    def make_review_order(self):
+        from app.services.inventory import reserve_item
+        from app.services.orders import create_order, order_summary
+        reserve_item(self.db, self.seller.id, self.classic.id, self.a.id, quantity=2)
+        reserve_item(self.db, self.seller.id, self.last.id, self.a.id)
+        return create_order(self.db, self.seller, self.a,
+                            dict(name='Review Test', phone='01000000000', address='Sample address', area='Cairo'),
+                            order_summary(self.db, self.a, self.zone))
+
+    def inventory_snapshot(self):
+        from app.models import Variant
+        self.db.expire_all()
+        return {row.id: (row.stock, row.reserved) for row in self.db.scalars(select(Variant))}
+
+    def test_seller_confirm_consumes_multi_item_stock_once(self):
+        from app.models import OrderItem, OrderStatus, Reservation, ReservationStatus
+        from app.services.seller_orders import review_order
+        baseline = self.inventory_snapshot()
+        order = self.make_review_order()
+        for _ in range(2):
+            self.assertEqual(review_order(self.db, self.seller.id, order.id, OrderStatus.CONFIRMED).status, OrderStatus.CONFIRMED)
+        expected = dict(baseline)
+        expected[self.classic.id] = (baseline[self.classic.id][0] - 2, 0)
+        expected[self.last.id] = (baseline[self.last.id][0] - 1, 0)
+        self.assertEqual(self.inventory_snapshot(), expected)
+        self.assertEqual(order.total, Decimal('1470.00'))
+        self.assertEqual(self.count(OrderItem), 2)
+        self.assertEqual(set(self.db.scalars(select(Reservation.status))), {ReservationStatus.CONFIRMED})
+
+    def test_seller_cancel_pending_releases_all_holds_once(self):
+        from app.models import OrderStatus, Reservation, ReservationStatus
+        from app.services.inventory import expire_reservations, reserve_item
+        from app.services.seller_orders import review_order
+        baseline = self.inventory_snapshot()
+        order = self.make_review_order()
+        for _ in range(2):
+            self.assertEqual(review_order(self.db, self.seller.id, order.id, OrderStatus.CANCELLED).status, OrderStatus.CANCELLED)
+        self.assertEqual(self.inventory_snapshot(), baseline)
+        self.assertEqual(set(self.db.scalars(select(Reservation.status))), {ReservationStatus.RELEASED})
+        self.assertEqual(expire_reservations(self.db), 0)
+        self.assertIsNotNone(reserve_item(self.db, self.seller.id, self.last.id, self.b.id))
+
+    def test_seller_cancel_confirmed_restocks_once_preserving_other_holds(self):
+        from app.models import OrderStatus
+        from app.services.inventory import reserve_item
+        from app.services.seller_orders import review_order
+        baseline = self.inventory_snapshot()
+        order = self.make_review_order()
+        reserve_item(self.db, self.seller.id, self.classic.id, self.b.id)
+        review_order(self.db, self.seller.id, order.id, OrderStatus.CONFIRMED)
+        for _ in range(2):
+            review_order(self.db, self.seller.id, order.id, OrderStatus.CANCELLED)
+        expected = dict(baseline)
+        expected[self.classic.id] = (baseline[self.classic.id][0], 1)
+        self.assertEqual(self.inventory_snapshot(), expected)
+
+    def test_cancelled_order_cannot_be_confirmed_or_reopened(self):
+        from app.models import OrderStatus
+        from app.services.seller_orders import OrderConflict, review_order
+        order = self.make_review_order()
+        review_order(self.db, self.seller.id, order.id, OrderStatus.CANCELLED)
+        before = self.inventory_snapshot()
+        for target in [OrderStatus.CONFIRMED, OrderStatus.PENDING]:
+            with self.assertRaisesRegex(OrderConflict, 'invalid_order_transition'):
+                review_order(self.db, self.seller.id, order.id, target)
+        self.assertEqual(self.inventory_snapshot(), before)
+
+    def test_review_rejects_other_seller_and_missing_orders(self):
+        from app.models import OrderStatus
+        from app.services.seller_orders import review_order
+        from app.services.workspace import WorkspaceNotFound
+        order = self.make_review_order()
+        other, _, _ = self.other_seller()
+        before = self.inventory_snapshot()
+        for target in [OrderStatus.CONFIRMED, OrderStatus.CANCELLED]:
+            for seller_id, order_id in [(other.id, order.id), (self.seller.id, uuid4())]:
+                with self.assertRaises(WorkspaceNotFound):
+                    review_order(self.db, seller_id, order_id, target)
+        self.assertEqual(self.inventory_snapshot(), before)
+
+    def test_concurrent_seller_confirmation_consumes_stock_once(self):
+        from app.models import OrderStatus
+        from app.services.seller_orders import review_order
+        order = self.make_review_order()
+        before = self.inventory_snapshot()
+        self.assertEqual(self.race(lambda db, _: review_order(db, self.seller.id, order.id, OrderStatus.CONFIRMED).status),
+                         [OrderStatus.CONFIRMED, OrderStatus.CONFIRMED])
+        expected = dict(before)
+        expected[self.classic.id] = (before[self.classic.id][0] - 2, 0)
+        expected[self.last.id] = (before[self.last.id][0] - 1, 0)
+        self.assertEqual(self.inventory_snapshot(), expected)
+
+    def test_concurrent_seller_cancellation_returns_stock_once(self):
+        from app.models import OrderStatus
+        from app.services.seller_orders import review_order
+        baseline = self.inventory_snapshot()
+        order = self.make_review_order()
+        review_order(self.db, self.seller.id, order.id, OrderStatus.CONFIRMED)
+        self.assertEqual(self.race(lambda db, _: review_order(db, self.seller.id, order.id, OrderStatus.CANCELLED).status),
+                         [OrderStatus.CANCELLED, OrderStatus.CANCELLED])
+        self.assertEqual(self.inventory_snapshot(), baseline)
+
+    def test_concurrent_confirm_and_cancel_leave_cancelled_stock_available(self):
+        from app.models import Order, OrderStatus
+        from app.services.seller_orders import OrderConflict, review_order
+        baseline = self.inventory_snapshot()
+        order = self.make_review_order()
+        def attempt(db, index):
+            try:
+                return review_order(db, self.seller.id, order.id,
+                                    [OrderStatus.CONFIRMED, OrderStatus.CANCELLED][index]).status
+            except OrderConflict as error:
+                return str(error)
+        results = self.race(attempt)
+        self.assertIn(results[0], [OrderStatus.CONFIRMED, 'invalid_order_transition'])
+        self.assertEqual(results[1], OrderStatus.CANCELLED)
+        self.assertEqual(self.inventory_snapshot(), baseline)
+        self.assertEqual(self.db.get(Order, order.id).status, OrderStatus.CANCELLED)
+
+    def test_review_inventory_failure_rolls_back_every_item_and_status(self):
+        from app.models import Order, OrderStatus, Reservation, ReservationStatus, Variant
+        from app.services.seller_orders import OrderConflict, review_order
+        order = self.make_review_order()
+        # Corrupt the last-updated variant to force failure after the first update.
+        last_id = sorted([self.classic.id, self.last.id], key=str)[-1]
+        self.db.execute(update(Variant).where(Variant.id == last_id).values(reserved=0))
+        self.db.commit()
+        before = self.inventory_snapshot()
+        for target in [OrderStatus.CONFIRMED, OrderStatus.CANCELLED]:
+            with self.assertRaisesRegex(OrderConflict, 'order_inventory_conflict'):
+                review_order(self.db, self.seller.id, order.id, target)
+            self.assertEqual(self.inventory_snapshot(), before)
+            self.assertEqual(self.db.get(Order, order.id).status, OrderStatus.PENDING)
+            self.assertEqual(set(self.db.scalars(select(Reservation.status))), {ReservationStatus.CONFIRMED})
+
+    def test_review_refuses_missing_or_mismatched_linked_holds(self):
+        from app.models import OrderStatus, Reservation
+        from app.services.seller_orders import OrderConflict, review_order
+        order = self.make_review_order()
+        hold = self.db.scalar(select(Reservation).where(Reservation.order_id == order.id))
+        hold.order_id = None
+        self.db.commit()
+        before = self.inventory_snapshot()
+        with self.assertRaisesRegex(OrderConflict, 'order_inventory_conflict'):
+            review_order(self.db, self.seller.id, order.id, OrderStatus.CONFIRMED)
+        self.assertEqual(self.inventory_snapshot(), before)
+
+    def test_review_http_auth_status_codes_and_persistence(self):
+        from fastapi.testclient import TestClient
+        from app.core.config import settings
+        from app.db.session import get_db
+        from app.main import app
+        from app.models import Order, OrderStatus
+        order = self.make_review_order()
+        def test_session():
+            with self.sessions() as db:
+                yield db
+        app.dependency_overrides[get_db] = test_session
+        self.addCleanup(app.dependency_overrides.clear)
+        with patch.object(settings, 'demo_api_key', 'database-review-test'), TestClient(app) as client:
+            url = f'/api/demo/orders/{order.id}'
+            headers = {'Authorization': 'Bearer database-review-test'}
+            for action in ['confirm', 'cancel']:
+                self.assertEqual(client.post(f'{url}/{action}').status_code, 401)
+                self.assertEqual(client.post(f'{url}/{action}', headers={'Authorization': 'Bearer wrong'}).status_code, 401)
+            response = client.post(f'{url}/confirm', headers=headers)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['status'], 'CONFIRMED')
+            self.assertEqual(response.json()['total'], '1470.00')
+            self.assertEqual(client.post(f'{url}/confirm', headers=headers).status_code, 200)
+            self.assertEqual(client.post(f'{url}/cancel', headers=headers).json()['status'], 'CANCELLED')
+            self.assertEqual(client.post(f'{url}/cancel', headers=headers).status_code, 200)
+            self.assertEqual(client.post(f'{url}/confirm', headers=headers).status_code, 409)
+            self.assertEqual(client.post(f'/api/demo/orders/{uuid4()}/cancel', headers=headers).status_code, 404)
+            self.assertEqual(client.post('/api/demo/orders/not-a-uuid/confirm', headers=headers).status_code, 422)
+        self.db.expire_all()
+        self.assertEqual(self.db.get(Order, order.id).status, OrderStatus.CANCELLED)
+
     def test_concurrent_duplicate_request_is_claimed_once(self):
         from app.models import ChatRequest
         from app.services.chat_requests import RequestConflict, claim

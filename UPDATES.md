@@ -1,5 +1,10 @@
 # Brief handoff log
 
+## 2026-11-03 — Seller order review
+- Added authenticated seller-scoped POST /api/demo/orders/{id}/confirm and /cancel. Order-row locking serializes review; status and stock changes share one transaction. Confirm consumes held units; pending cancel releases holds; confirmed cancel restocks. Same-action retries are no-ops; cancellation is terminal. Inconsistent inventory fails closed with 409; no migration/model calls/notifications.
+- Frontend Live details now support real actions, busy controls, explicit cancellation review, status reconciliation after errors, and list refresh; styling retained. Separate frontend repo pushed with this backend.
+- 11 new PostgreSQL tests (25 total) cover transitions, multi-item counts, idempotency, races, seller isolation, full rollback and HTTP auth/contracts. Local disposable yefhamak_test only; no demo/Neon reset. Offline 41 tests, frontend 14 tests and production build passed. Browser confirmed then cancelled a synthetic test order and verified Pending filter; evidence under docs/testing/2026-11-03-seller-orders* and seller-order-ui.png.
+
 ## 2026-11-03 — Local Docker database
 - Added compose.yaml: PostgreSQL 16, loopback port 5433, healthcheck, persistent named volume. Docker Desktop storage moved to E:\DockerData\DockerDesktopWSL using its UI.
 - Added scripts/local-db.ps1: temporary local DATABASE_URL/DIRECT_URL overrides, dummy provider key, live chat disabled, environment restored afterward. Existing .env/Neon unchanged. Backend still runs in host .venv.
