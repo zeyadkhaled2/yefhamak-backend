@@ -1,5 +1,11 @@
 # Brief handoff log
 
+## 2026-11-03 — Local Docker database
+- Added compose.yaml: PostgreSQL 16, loopback port 5433, healthcheck, persistent named volume. Docker Desktop storage moved to E:\DockerData\DockerDesktopWSL using its UI.
+- Added scripts/local-db.ps1: temporary local DATABASE_URL/DIRECT_URL overrides, dummy provider key, live chat disabled, environment restored afterward. Existing .env/Neon unchanged. Backend still runs in host .venv.
+- Started local DB, migrated to c68a9e315f22, seeded 4 products/9 variants. Verified 41 offline tests, real local API smoke with zero model calls, data retained after container restart. Evidence: docs/testing/2026-11-03-local-docker.txt; guide: docs/local-database.md.
+- Local database left running. Use wrapper for local migrations/seed/server; seed resets demo data. PostgreSQL integration tests still need a separate test database. FastAPI containerization remains later work.
+
 ## 2026-11-03 — PostgreSQL integration tests
 - Added opt-in assertion-based suite and `python -m tests.integration` runner. Explicit loopback TEST_DATABASE_URL/test DB name required; no .env fallback or remote target. Migrates a disposable DB, resets its application tables, and reuses the demo seed per test.
 - CI adds PostgreSQL 16 service after offline tests. Covers last-item races, release/expiry, order confirmation/rollback, seller isolation, durable replay/concurrent claims. Model access forbidden. Neon and local app data are untouched; no local Docker installation required.

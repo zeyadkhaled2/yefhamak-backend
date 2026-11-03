@@ -61,6 +61,8 @@ Routes call application logic; store rules stay in `services/`, and model orches
 
 ## Setup
 
+For a separate local PostgreSQL database in Docker, follow [local database setup](docs/local-database.md). It preserves existing Neon configuration and disables live model calls. Only the database runs in Docker at this stage.
+
 Use Python 3.10+ and a PostgreSQL database (configured for Neon). From the project root in PowerShell:
 
 ```powershell

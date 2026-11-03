@@ -1,0 +1,19 @@
+Local Docker PostgreSQL setup verification — 2026-11-03
+
+Docker Desktop data location: E:\DockerData\DockerDesktopWSL
+Compose: PostgreSQL 16; 127.0.0.1:5433 -> container 5432
+Persistent volume: yefhamak_postgres_data
+
+PASS: local-db.ps1 settings target local yefhamak for DATABASE_URL and DIRECT_URL.
+PASS: LIVE_CHAT_ENABLED=False; provider key replaced with dummy value.
+PASS: 41 offline unit tests (0.489s).
+PASS: all migrations applied through c68a9e315f22.
+PASS: seed created 4 products and 9 variants.
+PASS: scripts.check_api against local DB: conversation creation, guarded message
+      persistence, durable replay, history, order listing; zero model calls.
+      Leaves one synthetic conversation and two messages in local DB.
+PASS: Docker database restarted and returned healthy; 4 products, 9 variants,
+      and migration c68a9e315f22 persisted afterward.
+
+No Neon connections or live model requests. Local DB remains running.
+Backend itself is not containerized or left running by this setup.
