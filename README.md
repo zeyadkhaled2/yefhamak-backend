@@ -61,7 +61,7 @@ Routes call application logic; store rules stay in `services/`, and model orches
 
 ## Setup
 
-For a separate local PostgreSQL database in Docker, follow [local database setup](docs/local-database.md). It preserves existing Neon configuration and disables live model calls. Only the database runs in Docker at this stage.
+Run `docker compose up -d --build --wait` to start FastAPI and local PostgreSQL together. See [local Docker setup](docs/local-database.md) for the first-time seed and frontend connection. Live chat is off by default.
 
 Use Python 3.10+ and a PostgreSQL database (configured for Neon). From the project root in PowerShell:
 

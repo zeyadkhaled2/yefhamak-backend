@@ -1,5 +1,10 @@
 # Brief handoff log
 
+## 2026-11-04 — FastAPI in Docker Compose
+- Added a Python 3.12 image that runs as a non-root user. Compose starts FastAPI after PostgreSQL is healthy, applies migrations, and checks `/health/db`. The API uses `db:5432` and the existing local volume. Host access is `127.0.0.1:8000`.
+- Verified both services healthy, migration `c68a9e315f22`, four existing products, and HTTP 200 from authenticated demo status and orders. Confirmed no `.env` file in the image and live chat disabled. No seeding or model calls during verification.
+- See `docs/local-database.md` for startup and `COMPOSE_LIVE_CHAT_ENABLED` for the next live demo step.
+
 ## 2026-11-03 — Seller order review
 - Added authenticated seller-scoped POST /api/demo/orders/{id}/confirm and /cancel. Order-row locking serializes review; status and stock changes share one transaction. Confirm consumes held units; pending cancel releases holds; confirmed cancel restocks. Same-action retries are no-ops; cancellation is terminal. Inconsistent inventory fails closed with 409; no migration/model calls/notifications.
 - Frontend Live details now support real actions, busy controls, explicit cancellation review, status reconciliation after errors, and list refresh; styling retained. Separate frontend repo pushed with this backend.
