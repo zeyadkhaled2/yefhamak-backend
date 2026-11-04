@@ -15,7 +15,7 @@ from openai import OpenAI
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.agent.guards import allowed_numbers, check_input, clean_output, numbers_in, unsupported_numbers
+from app.agent.guards import allowed_numbers, check_input, clean_output, greeting_reply, numbers_in, unsupported_numbers
 from app.agent.prompt import build_system_prompt
 from app.agent.tools import TOOLS, run_tool
 from app.core.config import settings
@@ -143,6 +143,11 @@ def handle_message(
             print("   [guard] input blocked before reaching the model")
         _save_reply(db, conversation, blocked)
         return blocked
+
+    greeting = greeting_reply(user_text)
+    if greeting:
+        _save_reply(db, conversation, greeting)
+        return greeting
 
     started = time.time()
     tokens_in = tokens_out = 0

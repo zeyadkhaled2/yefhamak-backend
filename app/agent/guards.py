@@ -47,7 +47,16 @@ def clean_output(text: str) -> str:
     text = re.sub(r"^\s{0,3}#{1,6}\s*", "", text, flags=re.M)
     text = re.sub(r"^\s*[-+]\s+", "• ", text, flags=re.M)
     text = re.sub(r"\n{3,}", "\n\n", text)
+    text = re.sub(r"\bابعتلهم\b", "ابعتهم", text)
     return text.strip()
+
+
+def greeting_reply(text: str) -> str | None:
+    """Handle a standalone greeting without acting on the previous turn."""
+    greeting = normalize(text).strip(" \t\n!?.،؟")
+    if greeting in {"اهلا", "اهلا تاني", "اهلا وسهلا", "السلام عليكم", "مرحبا"}:
+        return "أهلًا بيك! تحب نكمّل من آخر نقطة؟"
+    return None
 
 
 _ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
