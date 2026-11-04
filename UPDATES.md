@@ -1,5 +1,7 @@
 # Brief handoff log
 
+- 2026-11-04: Completed one live OpenRouter checkout and seller confirmation through the Docker API. All 5 scenario checkpoints passed. See `docs/testing/2026-11-04-live-order.md`.
+
 ## 2026-11-04 — FastAPI in Docker Compose
 - Added a Python 3.12 image that runs as a non-root user. Compose starts FastAPI after PostgreSQL is healthy, applies migrations, and checks `/health/db`. The API uses `db:5432` and the existing local volume. Host access is `127.0.0.1:8000`.
 - Verified both services healthy, migration `c68a9e315f22`, four existing products, and HTTP 200 from authenticated demo status and orders. Confirmed no `.env` file in the image and live chat disabled. No seeding or model calls during verification.
