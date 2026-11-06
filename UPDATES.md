@@ -1,3 +1,10 @@
+## 2026-11-06 — Store-document RAG
+- Added seller-scoped PostgreSQL knowledge passages, migration, trusted Markdown/text import CLI, Arabic/English lexical retrieval tool, and application-generated source footer persisted in chat history.
+- No embedding API/new dependencies. Existing price/stock/order tools remain authoritative; demo care document explicitly contains fictional guidance and no product material claims.
+- Verified 45 unit + 29 isolated PostgreSQL tests, Docker rebuild/health, and 2 live model questions with retrieval traces. Loaded care.md into the existing local Demo Store without reseeding.
+- Live observations: care guidance retrieved; unsupported organic-cotton claim declined. Model used numbered formatting and offered a team follow-up; no guarantee of strict formatting, semantic recall, or per-claim grounding.
+- Operator guide: docs/rag.md. Evidence: docs/testing/2026-11-06-rag-*. No frontend changes or Neon migration.
+
 # Brief handoff log
 
 - 2026-11-04: Completed one live OpenRouter checkout and seller confirmation through the Docker API. All 5 scenario checkpoints passed. See `docs/testing/2026-11-04-live-order.md`.

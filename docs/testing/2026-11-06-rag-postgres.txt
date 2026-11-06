@@ -1,0 +1,37 @@
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade c68a9e315f22 -> d91a4b7e2201, Seller-scoped knowledge passages.
+test_cancelled_order_cannot_be_confirmed_or_reopened (test_postgres.PostgresTests.test_cancelled_order_cannot_be_confirmed_or_reopened) ... ok
+test_cannot_attach_reservation_to_another_sellers_conversation (test_postgres.PostgresTests.test_cannot_attach_reservation_to_another_sellers_conversation) ... ok
+test_cannot_reserve_another_sellers_variant (test_postgres.PostgresTests.test_cannot_reserve_another_sellers_variant) ... ok
+test_catalog_ambiguity_and_franco_search (test_postgres.PostgresTests.test_catalog_ambiguity_and_franco_search) ... ok
+test_catalog_and_conversation_queries_are_seller_isolated (test_postgres.PostgresTests.test_catalog_and_conversation_queries_are_seller_isolated) ... ok
+test_concurrent_confirm_and_cancel_leave_cancelled_stock_available (test_postgres.PostgresTests.test_concurrent_confirm_and_cancel_leave_cancelled_stock_available) ... ok
+test_concurrent_different_requests_share_one_inflight_slot (test_postgres.PostgresTests.test_concurrent_different_requests_share_one_inflight_slot) ... ok
+test_concurrent_duplicate_request_is_claimed_once (test_postgres.PostgresTests.test_concurrent_duplicate_request_is_claimed_once) ... ok
+test_concurrent_release_is_idempotent (test_postgres.PostgresTests.test_concurrent_release_is_idempotent) ... ok
+test_concurrent_seller_cancellation_returns_stock_once (test_postgres.PostgresTests.test_concurrent_seller_cancellation_returns_stock_once) ... ok
+test_concurrent_seller_confirmation_consumes_stock_once (test_postgres.PostgresTests.test_concurrent_seller_confirmation_consumes_stock_once) ... ok
+test_expired_hold_rolls_back_order_and_items (test_postgres.PostgresTests.test_expired_hold_rolls_back_order_and_items) ... ok
+test_expiry_only_releases_expired_holds_once (test_postgres.PostgresTests.test_expiry_only_releases_expired_holds_once) ... ok
+test_invalid_quantity_never_changes_stock (test_postgres.PostgresTests.test_invalid_quantity_never_changes_stock) ... ok
+test_knowledge_agent_roundtrip_with_mock_model (test_postgres.PostgresTests.test_knowledge_agent_roundtrip_with_mock_model) ... ok
+test_knowledge_invalid_import_preserves_existing_document (test_postgres.PostgresTests.test_knowledge_invalid_import_preserves_existing_document) ... ok
+test_knowledge_no_match_and_bounded_results (test_postgres.PostgresTests.test_knowledge_no_match_and_bounded_results) ... ok
+test_knowledge_retrieval_is_seller_scoped_and_reimport_replaces (test_postgres.PostgresTests.test_knowledge_retrieval_is_seller_scoped_and_reimport_replaces) ... ok
+test_multi_item_order_confirmation_and_duplicate_protection (test_postgres.PostgresTests.test_multi_item_order_confirmation_and_duplicate_protection) ... ok
+test_orders_are_seller_isolated_and_search_escapes_wildcards (test_postgres.PostgresTests.test_orders_are_seller_isolated_and_search_escapes_wildcards) ... ok
+test_request_replay_survives_new_session_and_rejects_changed_text (test_postgres.PostgresTests.test_request_replay_survives_new_session_and_rejects_changed_text) ... ok
+test_review_http_auth_status_codes_and_persistence (test_postgres.PostgresTests.test_review_http_auth_status_codes_and_persistence) ... ok
+test_review_inventory_failure_rolls_back_every_item_and_status (test_postgres.PostgresTests.test_review_inventory_failure_rolls_back_every_item_and_status) ... ok
+test_review_refuses_missing_or_mismatched_linked_holds (test_postgres.PostgresTests.test_review_refuses_missing_or_mismatched_linked_holds) ... ok
+test_review_rejects_other_seller_and_missing_orders (test_postgres.PostgresTests.test_review_rejects_other_seller_and_missing_orders) ... ok
+test_seller_cancel_confirmed_restocks_once_preserving_other_holds (test_postgres.PostgresTests.test_seller_cancel_confirmed_restocks_once_preserving_other_holds) ... ok
+test_seller_cancel_pending_releases_all_holds_once (test_postgres.PostgresTests.test_seller_cancel_pending_releases_all_holds_once) ... ok
+test_seller_confirm_consumes_multi_item_stock_once (test_postgres.PostgresTests.test_seller_confirm_consumes_multi_item_stock_once) ... ok
+test_two_customers_compete_for_last_item (test_postgres.PostgresTests.test_two_customers_compete_for_last_item) ... ok
+
+----------------------------------------------------------------------
+Ran 29 tests in 6.219s
+
+OK

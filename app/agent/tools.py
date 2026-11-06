@@ -21,6 +21,7 @@ from app.models import (
     ShopQuestion,
 )
 from app.services.catalog import search_products
+from app.services.knowledge import search_knowledge
 from app.services.inventory import RESERVATION_MINUTES, available_quantity, reserve_item
 from app.services.orders import (
     count_customer_messages,
@@ -68,6 +69,9 @@ def _tool(name: str, description: str, model: type[BaseModel]) -> dict:
 
 # The list we send to the LLM so it knows what it can do
 TOOLS = [
+    _tool("search_store_knowledge", "Retrieve store document passages about care, materials, sizing guidance and policies. "
+          "Use before answering these questions or escalating missing product information. "
+          "Include the product name and the customer question. Never use this for live price or stock.", SearchArgs),
     _tool(
         "search_products",
         "Search the shop's catalog. Pass what the customer asked for in their own words (product type, color, size). "
@@ -237,7 +241,12 @@ def _handoff(db: Session, seller: Seller, conversation: Conversation, args: Hand
     return {"ok": True, "note": "A human from the shop will take over. Tell the customer the team will reply soon."}
 
 
+def _knowledge(db: Session, seller: Seller, conversation: Conversation, args: SearchArgs) -> dict:
+    return search_knowledge(db, seller.id, args.query)
+
+
 HANDLERS = {
+    "search_store_knowledge": (SearchArgs, _knowledge),
     "search_products": (SearchArgs, _search),
     "reserve_item": (ReserveArgs, _reserve),
     "create_order": (CreateOrderArgs, _create_order),

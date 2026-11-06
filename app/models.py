@@ -350,3 +350,20 @@ class ShopQuestion(Base):
     )
     answer: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = created_at_col()
+
+
+class KnowledgeChunk(Base):
+    """Seller-owned document passages. Reimport replaces a source atomically."""
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (
+        UniqueConstraint("seller_id", "source", "position", name="uq_knowledge_source_position"),
+        Index("ix_knowledge_terms", "terms", postgresql_using="gin"),
+    )
+    id: Mapped[uuid.UUID] = uuid_pk()
+    seller_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sellers.id", ondelete="CASCADE"), index=True)
+    source: Mapped[str] = mapped_column(String(120))
+    title: Mapped[str] = mapped_column(String(160))
+    position: Mapped[int]
+    body: Mapped[str] = mapped_column(Text)
+    terms: Mapped[list[str]] = mapped_column(ARRAY(String))
+    created_at: Mapped[datetime] = created_at_col()

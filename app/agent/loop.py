@@ -19,6 +19,7 @@ from app.agent.guards import allowed_numbers, check_input, clean_output, greetin
 from app.agent.prompt import build_system_prompt
 from app.agent.tools import TOOLS, run_tool
 from app.core.config import settings
+from app.services.knowledge import source_footer
 from app.models import Conversation, ConversationStatus, DeliveryZone, Message, MessageDirection, Seller
 
 MAX_STEPS = 6       # most LLM rounds per customer message (stops endless loops)
@@ -153,6 +154,7 @@ def handle_message(
     tokens_in = tokens_out = 0
     reply = ""
     corrected = False
+    knowledge_matches = []
     # Numbers the bot may repeat: produced by tools this turn (order totals etc.) or typed by the customer as a phone number
     tool_numbers: set[int] = {n for n in numbers_in(user_text) if n >= 10**8}
 
@@ -198,6 +200,8 @@ def handle_message(
             for call in message.tool_calls:
                 result = run_tool(db, seller, conversation, call.function.name, call.function.arguments)
                 _log(trace, type="tool", name=call.function.name, args=call.function.arguments, result=result)
+                if call.function.name == "search_store_knowledge":
+                    knowledge_matches.extend(result.get("matches", []))
                 if call.function.name == "create_order":
                     tool_numbers |= numbers_in(call.function.arguments)  # the customer's phone and address
                 if debug:
@@ -215,7 +219,7 @@ def handle_message(
             conversation.status = ConversationStatus.HANDOFF
             db.commit()
         else:
-            reply = clean_output(reply)
+            reply = clean_output(reply) + source_footer(knowledge_matches)
 
     except Exception as e:  # network problem, rate limit on a free model, etc.
         db.rollback()

@@ -441,3 +441,51 @@ class PostgresTests(unittest.TestCase):
                 return str(error)
         self.assertCountEqual(self.race(attempt), ['claimed', 'conversation_busy'])
         self.assertEqual(self.count(ChatRequest), 1)
+
+    def test_knowledge_retrieval_is_seller_scoped_and_reimport_replaces(self):
+        from app.services.knowledge import import_document, search_knowledge
+        from app.models import KnowledgeChunk
+        other, _, _ = self.other_seller()
+        import_document(self.db, other.id, 'care.md', 'Private care', 'wash SECRET OTHER STORE')
+        import_document(self.db, self.seller.id, 'care.md', 'Care guide', 'wash inside out with similar colours')
+        result = search_knowledge(self.db, self.seller.id, 'ازاي اغسل الهودي؟')
+        self.assertEqual(len(result['matches']), 1)
+        self.assertNotIn('SECRET', str(result))
+        self.assertEqual(result['matches'][0]['source'], 'care.md')
+        import_document(self.db, self.seller.id, 'care.md', 'Updated care', 'wash gently and air dry')
+        result = search_knowledge(self.db, self.seller.id, 'washing')
+        self.assertEqual(len(result['matches']), 1)
+        self.assertEqual(result['matches'][0]['text'], 'wash gently and air dry')
+        self.assertEqual(self.count(KnowledgeChunk), 2)
+
+    def test_knowledge_no_match_and_bounded_results(self):
+        from app.services.knowledge import import_document, search_knowledge
+        self.assertEqual(search_knowledge(self.db, self.seller.id, 'washing')['matches'], [])
+        import_document(self.db, self.seller.id, 'guide.md', 'Guide', '\n\n'.join('wash passage ' + str(i) for i in range(8)))
+        self.assertEqual(len(search_knowledge(self.db, self.seller.id, 'washing')['matches']), 3)
+        self.assertEqual(search_knowledge(self.db, self.seller.id, 'quantum physics')['matches'], [])
+
+    def test_knowledge_invalid_import_preserves_existing_document(self):
+        from app.services.knowledge import import_document, search_knowledge
+        import_document(self.db, self.seller.id, 'care.md', 'Care', 'wash gently')
+        with self.assertRaises(ValueError):
+            import_document(self.db, self.seller.id, 'care.md', 'Care', '')
+        self.assertEqual(search_knowledge(self.db, self.seller.id, 'wash')['matches'][0]['text'], 'wash gently')
+
+    def test_knowledge_agent_roundtrip_with_mock_model(self):
+        from types import SimpleNamespace as NS
+        from app.agent.loop import handle_message
+        from app.services.knowledge import import_document
+        from app.models import Message, MessageDirection
+        import_document(self.db, self.seller.id, 'care.md', 'Care guide', 'Wash inside out. اغسل القطعة على ظهرها.')
+        call = NS(id='care-call', function=NS(name='search_store_knowledge', arguments='{"query":"washing"}'))
+        replies = [NS(usage=None, choices=[NS(message=NS(content='', tool_calls=[call]))]),
+                   NS(usage=None, choices=[NS(message=NS(content='اغسل القطعة على ظهرها.', tool_calls=[]))])]
+        trace = []
+        with patch('app.agent.loop._chat', side_effect=replies):
+            reply = handle_message(self.db, self.seller, self.a, 'ازاي اغسل القطعة؟', trace=trace)
+        self.assertIn('care.md', reply)
+        self.assertIn('Care guide', reply)
+        self.assertEqual(trace[0]['name'], 'search_store_knowledge')
+        saved = self.db.scalar(select(Message).where(Message.conversation_id == self.a.id, Message.direction == MessageDirection.OUT))
+        self.assertEqual(saved.body, reply)

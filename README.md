@@ -8,6 +8,8 @@ The goal is a local CV/demo MVP. The separate frontend checkout (`D:\yefhamak`) 
 
 ## Features
 
+- [Store-document RAG](docs/rag.md): seller-scoped Arabic/English lexical retrieval, document import, and source references in live replies; no embedding API required.
+
 - Catalog search with Arabic, English, and Franco-Arabic normalization and clarification for ambiguous products.
 - Stock reservations with availability checks, expiration support, and protection against competing reservations.
 - Order preview and confirmation, customer detail validation, delivery fees, and duplicate-order protection.
@@ -27,9 +29,9 @@ Terminal chat / evaluation cases
               |
        Validated tool calls
               |
- Catalog / inventory / orders ---- PostgreSQL (Neon)
+ Catalog / inventory / orders / knowledge ---- PostgreSQL (local Docker or Neon)
 
-FastAPI currently exposes health checks and API documentation.
+FastAPI exposes protected demo chat, seller-order endpoints, health checks and API documentation.
 ```
 
 Stack: Python, FastAPI, SQLAlchemy, PostgreSQL/psycopg, Alembic, Pydantic Settings, and the OpenAI Python client targeting OpenRouter.
@@ -50,7 +52,7 @@ scripts/               Terminal chat, seller inbox, and provider probe
 evals/                 Live model conversation cases, checks, and runner
 tests/
   unit/                Offline tests discovered by unittest
-  integration/         Manually invoked checks against the demo database
+  integration/         Isolated disposable PostgreSQL regression tests
 alembic/               Database migration environment and revision history
 docs/                  Historical test notes
 eval_results/          Generated model evaluation reports
