@@ -1,3 +1,6 @@
+## Demo documentation refresh
+- Added the published YouTube demo, current features, local Docker/frontend setup, verified test evidence and explicit MVP limits to the README. RAG is identified as a post-recording addition.
+
 ## 2026-11-06 — Store-document RAG
 - Added seller-scoped PostgreSQL knowledge passages, migration, trusted Markdown/text import CLI, Arabic/English lexical retrieval tool, and application-generated source footer persisted in chat history.
 - No embedding API/new dependencies. Existing price/stock/order tools remain authoritative; demo care document explicitly contains fictional guidance and no product material claims.
