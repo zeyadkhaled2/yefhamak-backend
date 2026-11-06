@@ -1,3 +1,6 @@
+## Repository presentation cleanup
+- Reframed README around implemented capabilities and concise scope; removed tracked environment template and documented local configuration directly.
+
 ## Demo documentation refresh
 - Added the published YouTube demo, current features, local Docker/frontend setup, verified test evidence and explicit MVP limits to the README. RAG is identified as a post-recording addition.
 
